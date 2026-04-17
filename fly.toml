@@ -1,0 +1,24 @@
+app = "workly-bot"
+primary_region = "ams"
+
+[build]
+
+[env]
+  PORT = "8080"
+  SPRING_JPA_SHOW_SQL = "false"
+  SPRING_JPA_PROPERTIES_HIBERNATE_FORMAT_SQL = "false"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 1
+  processes = ["app"]
+
+  [[http_service.checks]]
+    interval = "15s"
+    timeout = "5s"
+    grace_period = "20s"
+    method = "GET"
+    path = "/health"
