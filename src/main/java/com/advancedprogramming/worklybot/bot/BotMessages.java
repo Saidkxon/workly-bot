@@ -26,6 +26,15 @@ public class BotMessages {
     public static final String REGISTRATION_SUCCESS =
             "Ro'yxatdan o'tish muvaffaqiyatli yakunlandi!";
 
+    public static final String REGISTRATION_PENDING_APPROVAL =
+            "Ro'yxatdan o'tish qabul qilindi. Akkauntingiz faollashtirilishini kuting.";
+
+    public static final String REGISTRATION_ALREADY_PENDING =
+            "Sizning ro'yxatdan o'tish so'rovingiz allaqachon yuborilgan. Faollashtirilishini kuting.";
+
+    public static final String REGISTRATION_ADMIN_BOOTSTRAPPED =
+            "Siz admin sifatida ro'yxatdan o'tdingiz.";
+
     public static final String NAME_LABEL =
             "Ism familiya: ";
 
@@ -39,13 +48,13 @@ public class BotMessages {
             "Sizning akkauntingiz faol emas. Menejer bilan bog'laning.";
 
     public static final String SHARE_LOCATION_FOR_ARRIVAL =
-            "Ishga kelganingizni tasdiqlash uchun joylashuvingizni yuboring.";
+            "Ishga kelganingizni tasdiqlash uchun LIVE joylashuvingizni yuboring.\n\nTelegram oynasidan \"Share my live location\" ni tanlang.";
 
     public static final String SHARE_LOCATION_FOR_LEAVING =
-            "Ishdan ketganingizni tasdiqlash uchun joylashuvingizni yuboring.";
+            "Ishdan ketganingizni tasdiqlash uchun LIVE joylashuvingizni yuboring.\n\nTelegram oynasidan \"Share my live location\" ni tanlang.";
 
     public static final String LOCATION_BUTTON =
-            "📍 Joylashuvni yuborish";
+            "📍 Live joylashuv";
 
     public static final String OUTSIDE_OFFICE =
             "Siz ofis hududida emassiz.\nMasofa: ";
@@ -77,6 +86,12 @@ public class BotMessages {
     public static final String ENTER_BOTH_TIMES =
             "Ikkala vaqtni HH:mm,HH:mm formatida kiriting\nMasalan: 08:15,18:40";
 
+    public static final String ENTER_EARLY_LEAVE_REASON =
+            "Erta ketish sababini yozing:";
+
+    public static final String INVALID_EARLY_LEAVE_REASON =
+            "Sabab juda qisqa. Kamida 5 ta belgi bilan yozing.";
+
     public static final String INVALID_APPROVE_COMMAND =
             "Tasdiqlash buyrug'i noto'g'ri.";
 
@@ -88,6 +103,9 @@ public class BotMessages {
 
     public static final String INVALID_DEACTIVATE_COMMAND =
             "Deactivate buyrug'i noto'g'ri.";
+
+    public static final String INVALID_PENDING_DEACTIVATE_COMMAND =
+            "deactivate_pending buyrug'i noto'g'ri.";
 
     public static final String INVALID_MAKE_MANAGER_COMMAND =
             "make_manager buyrug'i noto'g'ri.";
@@ -119,10 +137,16 @@ public class BotMessages {
     public static final String BUTTON_FIX_MISTAKE =
             "✏️ Vaqtni o'zgartirish";
 
+    public static final String BUTTON_EARLY_LEAVE =
+            "🏃 Erta ketish";
+
     public static final String CMD_TODAY_REPORT = "/bugungi_report";
     public static final String CMD_MONTH_REPORT = "/oylik_report";
     public static final String CMD_MONTH_EXCEL = "/oylik_excel";
     public static final String CMD_PENDING_CORRECTIONS = "/vaqtni_o'zgartirish_so'rovlari";
+    public static final String CMD_PENDING_EARLY_LEAVES = "/erta_ketish_so'rovlari";
+    public static final String CMD_PENDING_REGISTRATIONS = "/yangi_xodimlar";
+    public static final String CMD_AUDIT_LOG = "/audit_log";
     public static final String CMD_EMPLOYEES = "/Ishchilar";
 
     public static final String DAILY_REPORT_SHEET = "Kunlik hisobot";
@@ -138,6 +162,9 @@ public class BotMessages {
     public static final String COLUMN_LATE_MINUTES = "Kechikish (daqiqa)";
     public static final String COLUMN_ATTENDANCE_STATUS = "Holat";
     public static final String COLUMN_WORKED_DAYS = "Ish kunlari";
+    public static final String COLUMN_EXPECTED_DAYS = "Rejadagi ish kunlari";
+    public static final String COLUMN_ABSENT_DAYS = "Kelmagan kunlar";
+    public static final String COLUMN_MISSING_CHECKOUT_DAYS = "Ketishni belgilamagan kunlar";
     public static final String COLUMN_TOTAL_HOURS = "Jami ishlangan vaqt";
     public static final String COLUMN_LATE_COUNT = "Kechikkan kunlar";
     public static final String COLUMN_TOTAL_LATE_MINUTES = "Jami kechikish (daqiqa)";

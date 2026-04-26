@@ -6,25 +6,29 @@ import com.advancedprogramming.worklybot.entity.Employee;
 import com.advancedprogramming.worklybot.repository.AttendanceRepository;
 import com.advancedprogramming.worklybot.repository.EmployeeRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.telegram.telegrambots.client.okhttp.OkHttpTelegramClient;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.generics.TelegramClient;
 
+import java.time.Clock;
 import java.time.LocalDate;
 import java.util.List;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class ReminderService {
 
     private final EmployeeRepository employeeRepository;
     private final AttendanceRepository attendanceRepository;
     private final BotProperties botProperties;
+    private final Clock appClock;
 
     public void remindMissingArrivals() {
         TelegramClient telegramClient = new OkHttpTelegramClient(botProperties.getToken());
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(appClock);
 
         List<Employee> employees = employeeRepository.findAllByActiveTrue();
 
@@ -43,7 +47,7 @@ public class ReminderService {
 
     public void remindMissingLeaves() {
         TelegramClient telegramClient = new OkHttpTelegramClient(botProperties.getToken());
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(appClock);
 
         List<Employee> employees = employeeRepository.findAllByActiveTrue();
 
@@ -69,7 +73,7 @@ public class ReminderService {
                             .build()
             );
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error("Failed to send reminder to chat {}", chatId, e);
         }
     }
 }

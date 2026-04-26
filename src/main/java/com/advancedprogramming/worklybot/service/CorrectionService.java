@@ -4,12 +4,16 @@ import com.advancedprogramming.worklybot.bot.state.UserSession;
 import com.advancedprogramming.worklybot.entity.Attendance;
 import com.advancedprogramming.worklybot.entity.CorrectionRequest;
 import com.advancedprogramming.worklybot.entity.Employee;
+import com.advancedprogramming.worklybot.entity.enums.AuditActionType;
 import com.advancedprogramming.worklybot.entity.enums.CorrectionStatus;
 import com.advancedprogramming.worklybot.repository.AttendanceRepository;
 import com.advancedprogramming.worklybot.repository.CorrectionRequestRepository;
+import com.advancedprogramming.worklybot.repository.EmployeeRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.time.Clock;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
@@ -22,8 +26,24 @@ public class CorrectionService {
 
     private final CorrectionRequestRepository correctionRequestRepository;
     private final AttendanceRepository attendanceRepository;
+    private final EmployeeRepository employeeRepository;
+    private final AuditLogService auditLogService;
+    private final Clock appClock;
 
     public String createCorrectionRequest(Employee employee, UserSession session, String text) {
+        LocalDate workDate = session.getCorrectionDate();
+        if (workDate == null) {
+            return "Avval tuzatiladigan sanani kiriting.";
+        }
+
+        if (workDate.isAfter(LocalDate.now(appClock))) {
+            return "Kelajak sana uchun tuzatish so'rovi yuborib bo'lmaydi.";
+        }
+
+        if (correctionRequestRepository.existsByEmployeeAndWorkDateAndStatus(employee, workDate, CorrectionStatus.PENDING)) {
+            return "Bu sana uchun kutilayotgan tuzatish so'rovi allaqachon mavjud.";
+        }
+
         try {
             LocalTime requestedArrival = null;
             LocalTime requestedLeaving = null;
@@ -42,14 +62,36 @@ public class CorrectionService {
                 requestedLeaving = LocalTime.parse(parts[1].trim(), DateTimeFormatter.ofPattern("HH:mm"));
             }
 
+            if (requestedArrival != null && requestedLeaving != null && requestedLeaving.isBefore(requestedArrival)) {
+                return "Ketish vaqti kelish vaqtidan oldin bo'lishi mumkin emas.";
+            }
+
+            Attendance currentAttendance = attendanceRepository.findByEmployeeAndWorkDate(employee, workDate).orElse(null);
+            LocalTime effectiveArrival = requestedArrival;
+            LocalTime effectiveLeaving = requestedLeaving;
+
+            if (currentAttendance != null) {
+                if (effectiveArrival == null && currentAttendance.getArrivalTime() != null) {
+                    effectiveArrival = currentAttendance.getArrivalTime().toLocalTime();
+                }
+
+                if (effectiveLeaving == null && currentAttendance.getLeaveTime() != null) {
+                    effectiveLeaving = currentAttendance.getLeaveTime().toLocalTime();
+                }
+            }
+
+            if (effectiveArrival != null && effectiveLeaving != null && effectiveLeaving.isBefore(effectiveArrival)) {
+                return "Natijaviy kelish va ketish vaqtlari noto'g'ri tartibda bo'ladi.";
+            }
+
             CorrectionRequest correctionRequest = CorrectionRequest.builder()
                     .employee(employee)
-                    .workDate(session.getCorrectionDate())
+                    .workDate(workDate)
                     .requestedArrivalTime(requestedArrival)
                     .requestedLeaveTime(requestedLeaving)
                     .reason("Xodim tuzatish so'rovi yubordi")
                     .status(CorrectionStatus.PENDING)
-                    .createdAt(LocalDateTime.now())
+                    .createdAt(LocalDateTime.now(appClock))
                     .build();
 
             correctionRequestRepository.save(correctionRequest);
@@ -61,7 +103,7 @@ public class CorrectionService {
     }
 
     public String getPendingCorrectionsText() {
-        List<CorrectionRequest> requests = correctionRequestRepository.findAllByStatus(CorrectionStatus.PENDING);
+        List<CorrectionRequest> requests = correctionRequestRepository.findAllByStatusOrderByCreatedAtAsc(CorrectionStatus.PENDING);
 
         if (requests.isEmpty()) {
             return "Kutilayotgan tuzatish so'rovlari yo'q.";
@@ -88,7 +130,13 @@ public class CorrectionService {
         return sb.toString();
     }
 
-    public CorrectionActionResult approveCorrection(Long requestId) {
+    public CorrectionRequest findLatestPendingRequest(Employee employee, LocalDate workDate) {
+        return correctionRequestRepository
+                .findTopByEmployeeAndWorkDateAndStatusOrderByCreatedAtDesc(employee, workDate, CorrectionStatus.PENDING)
+                .orElse(null);
+    }
+
+    public CorrectionActionResult approveCorrection(Long requestId, Long actorTelegramUserId) {
         CorrectionRequest request = correctionRequestRepository.findById(requestId).orElse(null);
 
         if (request == null) {
@@ -121,7 +169,17 @@ public class CorrectionService {
         attendanceRepository.save(attendance);
 
         request.setStatus(CorrectionStatus.APPROVED);
+        request.setReviewedAt(LocalDateTime.now(appClock));
+        request.setReviewedByTelegramUserId(actorTelegramUserId);
         correctionRequestRepository.save(request);
+
+        Employee actor = employeeRepository.findByTelegramUserId(actorTelegramUserId).orElse(null);
+        auditLogService.logAction(
+                AuditActionType.CORRECTION_APPROVED,
+                actor,
+                request.getEmployee(),
+                "Sana: " + request.getWorkDate()
+        );
 
         return new CorrectionActionResult(
                 "Tuzatish so'rovi tasdiqlandi.",
@@ -130,7 +188,7 @@ public class CorrectionService {
         );
     }
 
-    public CorrectionActionResult rejectCorrection(Long requestId) {
+    public CorrectionActionResult rejectCorrection(Long requestId, Long actorTelegramUserId) {
         CorrectionRequest request = correctionRequestRepository.findById(requestId).orElse(null);
 
         if (request == null) {
@@ -142,7 +200,17 @@ public class CorrectionService {
         }
 
         request.setStatus(CorrectionStatus.REJECTED);
+        request.setReviewedAt(LocalDateTime.now(appClock));
+        request.setReviewedByTelegramUserId(actorTelegramUserId);
         correctionRequestRepository.save(request);
+
+        Employee actor = employeeRepository.findByTelegramUserId(actorTelegramUserId).orElse(null);
+        auditLogService.logAction(
+                AuditActionType.CORRECTION_REJECTED,
+                actor,
+                request.getEmployee(),
+                "Sana: " + request.getWorkDate()
+        );
 
         return new CorrectionActionResult(
                 "Tuzatish so'rovi rad etildi.",

@@ -33,6 +33,12 @@ public class EarlyLeaveRequest {
     @Column(nullable = false)
     private LocalDateTime createdAt;
 
+    @Column(name = "reviewed_at")
+    private LocalDateTime reviewedAt;
+
+    @Column(name = "reviewed_by_telegram_user_id")
+    private Long reviewedByTelegramUserId;
+
     @Column(nullable = false)
     private boolean approvedForTodayLeave;
 

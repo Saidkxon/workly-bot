@@ -1,6 +1,7 @@
 package com.advancedprogramming.worklybot.service;
 
 import com.advancedprogramming.worklybot.entity.Employee;
+import com.advancedprogramming.worklybot.entity.enums.AuditActionType;
 import com.advancedprogramming.worklybot.entity.enums.Role;
 import com.advancedprogramming.worklybot.repository.EmployeeRepository;
 import lombok.RequiredArgsConstructor;
@@ -11,6 +12,7 @@ import org.springframework.stereotype.Service;
 public class RoleService {
 
     private final EmployeeRepository employeeRepository;
+    private final AuditLogService auditLogService;
 
     public String makeManager(Long actorTelegramUserId, Long targetTelegramUserId) {
         Employee actor = employeeRepository.findByTelegramUserId(actorTelegramUserId).orElse(null);
@@ -30,6 +32,7 @@ public class RoleService {
 
         target.setRole(Role.MANAGER);
         employeeRepository.save(target);
+        auditLogService.logAction(AuditActionType.ROLE_CHANGED, actor, target, "Yangi rol: MANAGER");
 
         return target.getFullName() + " endi MANAGER.";
     }
@@ -52,6 +55,7 @@ public class RoleService {
 
         target.setRole(Role.EMPLOYEE);
         employeeRepository.save(target);
+        auditLogService.logAction(AuditActionType.ROLE_CHANGED, actor, target, "Yangi rol: EMPLOYEE");
 
         return target.getFullName() + " endi EMPLOYEE.";
     }
@@ -70,6 +74,7 @@ public class RoleService {
 
         target.setRole(Role.ADMIN);
         employeeRepository.save(target);
+        auditLogService.logAction(AuditActionType.ROLE_CHANGED, actor, target, "Yangi rol: ADMIN");
 
         return target.getFullName() + " endi ADMIN.";
     }

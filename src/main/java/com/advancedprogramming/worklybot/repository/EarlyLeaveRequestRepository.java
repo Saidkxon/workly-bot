@@ -12,6 +12,8 @@ import java.util.Optional;
 public interface EarlyLeaveRequestRepository extends JpaRepository<EarlyLeaveRequest, Long> {
 
     List<EarlyLeaveRequest> findAllByStatus(CorrectionStatus status);
+    List<EarlyLeaveRequest> findAllByStatusOrderByCreatedAtAsc(CorrectionStatus status);
+    boolean existsByEmployeeAndWorkDateAndStatus(Employee employee, LocalDate workDate, CorrectionStatus status);
 
     Optional<EarlyLeaveRequest> findTopByEmployeeAndWorkDateAndStatusOrderByCreatedAtDesc(
             Employee employee,

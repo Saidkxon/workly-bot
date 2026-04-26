@@ -1,6 +1,7 @@
 package com.advancedprogramming.worklybot.service;
 
 import com.advancedprogramming.worklybot.entity.Employee;
+import com.advancedprogramming.worklybot.entity.enums.AuditActionType;
 import com.advancedprogramming.worklybot.entity.enums.Role;
 import com.advancedprogramming.worklybot.repository.EmployeeRepository;
 import lombok.RequiredArgsConstructor;
@@ -13,6 +14,7 @@ import java.util.List;
 public class EmployeeService {
 
     private final EmployeeRepository employeeRepository;
+    private final AuditLogService auditLogService;
 
     public String getAllEmployeesText() {
         List<Employee> employees = employeeRepository.findAllByOrderByFullNameAsc();
@@ -62,6 +64,7 @@ public class EmployeeService {
 
         target.setActive(true);
         employeeRepository.save(target);
+        auditLogService.logAction(AuditActionType.EMPLOYEE_ACTIVATED, actor, target, "Xodim faollashtirildi.");
 
         return "Xodim faollashtirildi: " + target.getFullName();
     }
@@ -96,6 +99,7 @@ public class EmployeeService {
 
         target.setActive(false);
         employeeRepository.save(target);
+        auditLogService.logAction(AuditActionType.EMPLOYEE_DEACTIVATED, actor, target, "Xodim nofaol qilindi.");
 
         return "Xodim o'chirildi: " + target.getFullName();
     }

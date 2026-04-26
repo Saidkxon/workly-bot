@@ -11,11 +11,14 @@ Kerakli environment variable'lar:
 - `SPRING_DATASOURCE_PASSWORD`
 - `BOT_TOKEN`
 - `BOT_USERNAME` (ixtiyoriy, default: `workly_attendance_bot`)
+- `BOT_ADMIN_TELEGRAM_USER_IDS` (`123456789,987654321` ko'rinishida, birinchi admin(lar) uchun)
+- `APP_TIME_ZONE` (ixtiyoriy, default: `Asia/Tashkent`)
 - `OFFICE_LATITUDE`
 - `OFFICE_LONGITUDE`
 - `OFFICE_ALLOWED_RADIUS_METERS`
 - `OFFICE_WORK_START_TIME`
 - `OFFICE_WORK_END_TIME`
+- `SPRING_JPA_HIBERNATE_DDL_AUTO` (ixtiyoriy, lokalda kerak bo'lsa `update`)
 
 Misol:
 
@@ -24,8 +27,22 @@ $env:SPRING_DATASOURCE_URL="jdbc:postgresql://localhost:5432/workly_bot"
 $env:SPRING_DATASOURCE_USERNAME="postgres"
 $env:SPRING_DATASOURCE_PASSWORD="postgres"
 $env:BOT_TOKEN="telegram-bot-token"
+$env:BOT_ADMIN_TELEGRAM_USER_IDS="123456789"
+$env:APP_TIME_ZONE="Asia/Tashkent"
+$env:SPRING_JPA_HIBERNATE_DDL_AUTO="update"
 ./mvnw spring-boot:run
 ```
+
+`application.yml` ichida faqat xavfsiz default qiymatlar qoldirilgan. Haqiqiy token, parol va production koordinatalarni faqat environment variable yoki deploy secret orqali bering.
+
+## Yangi boshqaruv imkoniyatlari
+
+- Yangi ro'yxatdan o'tgan xodimlar ` /yangi_xodimlar ` orqali ko'rinadi va menejer/admin faollashtiradi.
+- Xodimlar `🏃 Erta ketish` tugmasi orqali sabab yuborib, menejer tasdiqlashini kutishi mumkin.
+- Menejer/admin uchun qo'shimcha buyruqlar:
+  - `/erta_ketish_so'rovlari`
+  - `/audit_log`
+- Oylik hisobot endi Du-Juma bo'yicha rejalashtirilgan ish kunlari, kelmagan kunlar va ketishni belgilamagan kunlarni ham ko'rsatadi.
 
 ## Fly.io ga deploy
 
@@ -50,11 +67,14 @@ fly secrets set \
   SPRING_DATASOURCE_PASSWORD="<password>" \
   BOT_TOKEN="<telegram-bot-token>" \
   BOT_USERNAME="workly_attendance_bot" \
+  BOT_ADMIN_TELEGRAM_USER_IDS="<admin-telegram-user-id>" \
+  APP_TIME_ZONE="Asia/Tashkent" \
   OFFICE_LATITUDE="41.360470" \
   OFFICE_LONGITUDE="69.226713" \
   OFFICE_ALLOWED_RADIUS_METERS="50.0" \
   OFFICE_WORK_START_TIME="09:00" \
-  OFFICE_WORK_END_TIME="18:00"
+  OFFICE_WORK_END_TIME="18:00" \
+  SPRING_JPA_HIBERNATE_DDL_AUTO="none"
 ```
 
 4. Deploy qiling:

@@ -6,23 +6,31 @@ import com.advancedprogramming.worklybot.entity.Attendance;
 import com.advancedprogramming.worklybot.entity.Employee;
 import com.advancedprogramming.worklybot.repository.AttendanceRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import jakarta.annotation.PostConstruct;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.dao.DataIntegrityViolationException;
 
+import java.time.Clock;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class AttendanceService {
 
     private final AttendanceRepository attendanceRepository;
     private final OfficeProperties officeProperties;
+    private final EarlyLeaveService earlyLeaveService;
+    private final Clock appClock;
 
+    @Transactional
     public String saveArrivalAfterLocationCheck(Employee employee) {
-        LocalDate today = LocalDate.now();
+        LocalDateTime now = LocalDateTime.now(appClock);
+        LocalDate today = now.toLocalDate();
 
         Attendance attendance = attendanceRepository.findByEmployeeAndWorkDate(employee, today).orElse(null);
 
@@ -34,20 +42,27 @@ public class AttendanceService {
             attendance = Attendance.builder()
                     .employee(employee)
                     .workDate(today)
-                    .arrivalTime(LocalDateTime.now())
+                    .arrivalTime(now)
                     .build();
         } else {
-            attendance.setArrivalTime(LocalDateTime.now());
+            attendance.setArrivalTime(now);
         }
 
-        attendanceRepository.save(attendance);
+        try {
+            attendanceRepository.saveAndFlush(attendance);
+        } catch (DataIntegrityViolationException exception) {
+            log.warn("Duplicate attendance row blocked for employee {} on {}", employee.getTelegramUserId(), today);
+            return "Siz bugungi kelgan vaqtingizni allaqachon belgilagansiz.";
+        }
 
         return "Ishga kelish vaqti tasdiqlandi va saqlandi: "
                 + attendance.getArrivalTime().toLocalTime().withNano(0);
     }
 
+    @Transactional
     public String saveLeavingAfterLocationCheck(Employee employee) {
-        LocalDate today = LocalDate.now();
+        LocalDateTime now = LocalDateTime.now(appClock);
+        LocalDate today = now.toLocalDate();
 
         Attendance attendance = attendanceRepository.findByEmployeeAndWorkDate(employee, today).orElse(null);
 
@@ -59,24 +74,19 @@ public class AttendanceService {
             return "Siz bugungi ketish vaqtingizni allaqachon belgilagansiz.";
         }
 
-        attendance.setLeaveTime(LocalDateTime.now());
+        if (!canMarkLeaving(employee)) {
+            return getLeavingNotAllowedMessage();
+        }
+
+        attendance.setLeaveTime(now);
         attendanceRepository.save(attendance);
 
         return "Ishdan ketish vaqti tasdiqlandi va saqlandi: "
                 + attendance.getLeaveTime().toLocalTime().withNano(0);
     }
 
-    @PostConstruct
-    public void debugOfficeProperties() {
-        System.out.println("OFFICE DEBUG");
-        System.out.println("latitude = " + officeProperties.getLatitude());
-        System.out.println("longitude = " + officeProperties.getLongitude());
-        System.out.println("allowedRadiusMeters = " + officeProperties.getAllowedRadiusMeters());
-        System.out.println("workStartTime = " + officeProperties.getWorkStartTime());
-    }
-
     public String getTodayStatus(Employee employee) {
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(appClock);
 
         Attendance attendance = attendanceRepository.findByEmployeeAndWorkDate(employee, today).orElse(null);
 
@@ -100,7 +110,7 @@ public class AttendanceService {
             return 0;
         }
 
-        return Duration.between(attendance.getArrivalTime(), attendance.getLeaveTime()).toMinutes();
+        return Math.max(0, Duration.between(attendance.getArrivalTime(), attendance.getLeaveTime()).toMinutes());
     }
 
     public String calculateWorkedHours(Attendance attendance) {
@@ -166,6 +176,29 @@ public class AttendanceService {
 
     public LocalTime getWorkStartTime() {
         return LocalTime.parse(officeProperties.getWorkStartTime());
+    }
+
+    public LocalTime getWorkEndTime() {
+        return LocalTime.parse(officeProperties.getWorkEndTime());
+    }
+
+    public boolean canMarkLeaving(Employee employee) {
+        LocalTime now = LocalTime.now(appClock);
+        return !now.isBefore(getWorkEndTime()) || earlyLeaveService.hasApprovedRequestForToday(employee);
+    }
+
+    public boolean hasOpenAttendanceForToday(Employee employee) {
+        if (employee == null) {
+            return false;
+        }
+
+        return attendanceRepository.findByEmployeeAndWorkDate(employee, LocalDate.now(appClock))
+                .map(attendance -> attendance.getArrivalTime() != null && attendance.getLeaveTime() == null)
+                .orElse(false);
+    }
+
+    public String getLeavingNotAllowedMessage() {
+        return getWorkEndTime() + " dan oldin ketish mumkin emas yoki erta ketish va uning sababini yuboring.";
     }
 
     public double getOfficeLatitude() {
