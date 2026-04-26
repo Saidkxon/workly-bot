@@ -1,0 +1,13 @@
+package com.advancedprogramming.worklybot.entity.enums;
+
+public enum AuditActionType {
+    REGISTRATION_APPROVED,
+    REGISTRATION_REJECTED,
+    EMPLOYEE_ACTIVATED,
+    EMPLOYEE_DEACTIVATED,
+    ROLE_CHANGED,
+    CORRECTION_APPROVED,
+    CORRECTION_REJECTED,
+    EARLY_LEAVE_APPROVED,
+    EARLY_LEAVE_REJECTED
+}
