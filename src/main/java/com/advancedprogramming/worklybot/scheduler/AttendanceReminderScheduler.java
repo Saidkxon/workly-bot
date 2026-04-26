@@ -18,7 +18,7 @@ public class AttendanceReminderScheduler {
     }
 
     // Evening reminder for missing leave
-    @Scheduled(cron = "0 0 21 * * MON-SUN", zone = "Asia/Tashkent")
+    @Scheduled(cron = "0 0 18 * * MON-SUN", zone = "Asia/Tashkent")
     public void remindLeaves() {
         reminderService.remindMissingLeaves();
     }
