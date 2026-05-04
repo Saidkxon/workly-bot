@@ -141,6 +141,7 @@ public class BotMessages {
             "🏃 Erta ketish";
 
     public static final String CMD_TODAY_REPORT = "/bugungi_report";
+    public static final String CMD_LATE_EMPLOYEES_LIST = "/late_employees_list";
     public static final String CMD_MONTH_REPORT = "/oylik_report";
     public static final String CMD_MONTH_EXCEL = "/oylik_excel";
     public static final String CMD_PENDING_CORRECTIONS = "/vaqtni_o'zgartirish_so'rovlari";
@@ -159,7 +160,7 @@ public class BotMessages {
     public static final String COLUMN_ARRIVAL = "Kelgan vaqt";
     public static final String COLUMN_LEAVING = "Ketgan vaqt";
     public static final String COLUMN_WORKED_HOURS = "Ishlangan vaqt";
-    public static final String COLUMN_LATE_MINUTES = "Kechikish (daqiqa)";
+    public static final String COLUMN_LATE_TIME = "Kechikish vaqti";
     public static final String COLUMN_ATTENDANCE_STATUS = "Holat";
     public static final String COLUMN_WORKED_DAYS = "Ish kunlari";
     public static final String COLUMN_EXPECTED_DAYS = "Rejadagi ish kunlari";
@@ -167,7 +168,7 @@ public class BotMessages {
     public static final String COLUMN_MISSING_CHECKOUT_DAYS = "Ketishni belgilamagan kunlar";
     public static final String COLUMN_TOTAL_HOURS = "Jami ishlangan vaqt";
     public static final String COLUMN_LATE_COUNT = "Kechikkan kunlar";
-    public static final String COLUMN_TOTAL_LATE_MINUTES = "Jami kechikish (daqiqa)";
+    public static final String COLUMN_TOTAL_LATE_TIME = "Jami kechikish vaqti";
 
     public static final String STATUS_ABSENT = "Kelmagan";
     public static final String STATUS_MISSING_ARRIVAL = "Kelgan vaqt yo'q";

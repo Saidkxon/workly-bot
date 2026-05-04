@@ -49,6 +49,7 @@ public class ReportService {
         long arrivedCount = 0;
         long absentCount = 0;
         long missingCheckoutCount = 0;
+        long lateCount = 0;
 
         StringBuilder report = new StringBuilder("Bugungi davomat hisoboti:\n\n");
 
@@ -57,6 +58,7 @@ public class ReportService {
             String arrival = "Belgilanmagan";
             String leaving = "Belgilanmagan";
             String status = BotMessages.STATUS_ABSENT;
+            long lateMinutes = 0;
 
             if (attendance != null) {
                 if (attendance.getArrivalTime() != null) {
@@ -69,6 +71,11 @@ public class ReportService {
                 }
 
                 status = attendanceService.calculateLateStatus(attendance);
+                lateMinutes = attendanceService.calculateLateMinutes(attendance);
+
+                if (lateMinutes > 0) {
+                    lateCount++;
+                }
 
                 if (attendance.getArrivalTime() != null && attendance.getLeaveTime() == null) {
                     missingCheckoutCount++;
@@ -81,6 +88,7 @@ public class ReportService {
                     .append("Bo'lim: ").append(employee.getDepartment()).append("\n")
                     .append("Kelgan vaqt: ").append(arrival).append("\n")
                     .append("Ketgan vaqt: ").append(leaving).append("\n")
+                    .append("Kechikish: ").append(formatLateTime(lateMinutes)).append("\n")
                     .append("Holat: ").append(status).append("\n")
                     .append("----------------------\n");
         }
@@ -88,7 +96,58 @@ public class ReportService {
         report.append("\nJami faol xodimlar: ").append(employees.size()).append("\n")
                 .append("Kelganlar: ").append(arrivedCount).append("\n")
                 .append("Kelmaganlar: ").append(absentCount).append("\n")
-                .append("Ketishni belgilamaganlar: ").append(missingCheckoutCount);
+                .append("Ketishni belgilamaganlar: ").append(missingCheckoutCount).append("\n")
+                .append("Kechikkanlar: ").append(lateCount)
+                .append(" (ro'yxat: ").append(BotMessages.CMD_LATE_EMPLOYEES_LIST).append(")");
+
+        return report.toString();
+    }
+
+    public String buildTodayLateEmployeesList() {
+        LocalDate today = LocalDate.now(appClock);
+        List<Employee> employees = employeeRepository.findAllByActiveTrueOrderByFullNameAsc();
+
+        if (employees.isEmpty()) {
+            return "Faol xodimlar topilmadi.";
+        }
+
+        Map<Long, Attendance> attendanceByEmployeeId = new HashMap<>();
+        for (Attendance attendance : attendanceRepository.findAllByWorkDate(today)) {
+            attendanceByEmployeeId.put(attendance.getEmployee().getId(), attendance);
+        }
+
+        StringBuilder report = new StringBuilder("Bugun kechikkan xodimlar:\n\n");
+        long lateCount = 0;
+
+        for (Employee employee : employees) {
+            Attendance attendance = attendanceByEmployeeId.get(employee.getId());
+            if (attendance == null) {
+                continue;
+            }
+
+            long lateMinutes = attendanceService.calculateLateMinutes(attendance);
+            if (lateMinutes <= 0) {
+                continue;
+            }
+
+            lateCount++;
+
+            String arrival = attendance.getArrivalTime() == null
+                    ? "Belgilanmagan"
+                    : attendance.getArrivalTime().toLocalTime().withNano(0).toString();
+
+            report.append("Ism familiya: ").append(employee.getFullName()).append("\n")
+                    .append("Bo'lim: ").append(employee.getDepartment()).append("\n")
+                    .append("Kelgan vaqt: ").append(arrival).append("\n")
+                    .append("Kechikish: ").append(formatLateTime(lateMinutes)).append("\n")
+                    .append("----------------------\n");
+        }
+
+        if (lateCount == 0) {
+            return "Bugun kechikkan xodimlar topilmadi.";
+        }
+
+        report.append("\nKechikkanlar: ").append(lateCount);
 
         return report.toString();
     }
@@ -123,7 +182,7 @@ public class ReportService {
                     .append("Kelmagan kunlar: ").append(summary.getAbsentDays()).append("\n")
                     .append("Ketishni belgilamagan kunlar: ").append(summary.getMissingCheckoutCount()).append("\n")
                     .append("Kechikkan kunlar: ").append(summary.getLateCount()).append("\n")
-                    .append("Jami kechikish: ").append(summary.getTotalLateMinutes()).append(" daqiqa\n")
+                    .append("Jami kechikish: ").append(formatLateTime(summary.getTotalLateMinutes())).append("\n")
                     .append("Jami ishlangan vaqt: ")
                     .append(attendanceService.formatMinutesAsHours(summary.getTotalWorkedMinutes())).append("\n")
                     .append("----------------------\n");
@@ -167,7 +226,7 @@ public class ReportService {
             dailyHeader.createCell(4).setCellValue(BotMessages.COLUMN_ARRIVAL);
             dailyHeader.createCell(5).setCellValue(BotMessages.COLUMN_LEAVING);
             dailyHeader.createCell(6).setCellValue(BotMessages.COLUMN_WORKED_HOURS);
-            dailyHeader.createCell(7).setCellValue(BotMessages.COLUMN_LATE_MINUTES);
+            dailyHeader.createCell(7).setCellValue(BotMessages.COLUMN_LATE_TIME);
             dailyHeader.createCell(8).setCellValue(BotMessages.COLUMN_ATTENDANCE_STATUS);
 
             int dailyRowNum = 1;
@@ -190,7 +249,7 @@ public class ReportService {
                 row.createCell(4).setCellValue(arrival);
                 row.createCell(5).setCellValue(leaving);
                 row.createCell(6).setCellValue(attendanceService.calculateWorkedHours(attendance));
-                row.createCell(7).setCellValue(attendanceService.calculateLateMinutes(attendance));
+                row.createCell(7).setCellValue(formatLateTime(attendanceService.calculateLateMinutes(attendance)));
                 row.createCell(8).setCellValue(attendanceService.calculateLateStatus(attendance));
             }
 
@@ -207,7 +266,7 @@ public class ReportService {
             summaryHeader.createCell(5).setCellValue(BotMessages.COLUMN_MISSING_CHECKOUT_DAYS);
             summaryHeader.createCell(6).setCellValue(BotMessages.COLUMN_TOTAL_HOURS);
             summaryHeader.createCell(7).setCellValue(BotMessages.COLUMN_LATE_COUNT);
-            summaryHeader.createCell(8).setCellValue(BotMessages.COLUMN_TOTAL_LATE_MINUTES);
+            summaryHeader.createCell(8).setCellValue(BotMessages.COLUMN_TOTAL_LATE_TIME);
 
             int summaryRowNum = 1;
 
@@ -222,7 +281,7 @@ public class ReportService {
                 row.createCell(5).setCellValue(summary.getMissingCheckoutCount());
                 row.createCell(6).setCellValue(attendanceService.formatMinutesAsHours(summary.getTotalWorkedMinutes()));
                 row.createCell(7).setCellValue(summary.getLateCount());
-                row.createCell(8).setCellValue(summary.getTotalLateMinutes());
+                row.createCell(8).setCellValue(formatLateTime(summary.getTotalLateMinutes()));
             }
 
             for (int i = 0; i < 9; i++) {
@@ -294,6 +353,10 @@ public class ReportService {
         }
 
         return count;
+    }
+
+    private String formatLateTime(long lateMinutes) {
+        return attendanceService.formatMinutesAsHours(lateMinutes);
     }
 
     private static class EmployeeMonthlySummary {

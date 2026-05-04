@@ -238,6 +238,11 @@ public class WorklyTelegramBot implements SpringLongPollingBot {
                 return;
             }
 
+            if (text.equals(BotMessages.CMD_LATE_EMPLOYEES_LIST)) {
+                sendPlainMessage(chatId, reportService.buildTodayLateEmployeesList(), telegramClient);
+                return;
+            }
+
             if (text.equals(BotMessages.CMD_MONTH_REPORT)) {
                 sendPlainMessage(chatId, reportService.buildMonthReport(), telegramClient);
                 return;
@@ -885,6 +890,7 @@ public class WorklyTelegramBot implements SpringLongPollingBot {
                 || text.equals(BotMessages.BUTTON_FIX_MISTAKE)
                 || text.equals(BotMessages.BUTTON_EARLY_LEAVE)
                 || text.equals(BotMessages.CMD_TODAY_REPORT)
+                || text.equals(BotMessages.CMD_LATE_EMPLOYEES_LIST)
                 || text.equals(BotMessages.CMD_MONTH_REPORT)
                 || text.equals(BotMessages.CMD_MONTH_EXCEL)
                 || text.equals(BotMessages.CMD_PENDING_CORRECTIONS)
