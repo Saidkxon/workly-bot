@@ -9,21 +9,21 @@ nohup: ignoring input
 
  :: Spring Boot ::                (v4.0.5)
 
-2026-04-26T17:06:12.564+05:00  INFO 22205 --- [workly-bot] [           main] c.a.worklybot.WorklyBotApplication       : Starting WorklyBotApplication v0.0.1-SNAPSHOT using Java 21.0.10 with PID 22205 (/home/ubuntu/workly-bot/target/workly-bot-0.0.1-SNAPSHOT.jar started by ubuntu in /home/ubuntu/workly-bot)
-2026-04-26T17:06:12.569+05:00  INFO 22205 --- [workly-bot] [           main] c.a.worklybot.WorklyBotApplication       : No active profile set, falling back to 1 default profile: "default"
-2026-04-26T17:06:14.376+05:00  INFO 22205 --- [workly-bot] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data JPA repositories in DEFAULT mode.
-2026-04-26T17:06:14.495+05:00  INFO 22205 --- [workly-bot] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 99 ms. Found 4 JPA repository interfaces.
-2026-04-26T17:06:15.591+05:00  INFO 22205 --- [workly-bot] [           main] o.s.boot.tomcat.TomcatWebServer          : Tomcat initialized with port 8080 (http)
-2026-04-26T17:06:15.619+05:00  INFO 22205 --- [workly-bot] [           main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
-2026-04-26T17:06:15.620+05:00  INFO 22205 --- [workly-bot] [           main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/11.0.20]
-2026-04-26T17:06:15.721+05:00  INFO 22205 --- [workly-bot] [           main] b.w.c.s.WebApplicationContextInitializer : Root WebApplicationContext: initialization completed in 2967 ms
-2026-04-26T17:06:16.049+05:00  INFO 22205 --- [workly-bot] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
-2026-04-26T17:06:16.971+05:00  INFO 22205 --- [workly-bot] [           main] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@28768e25
-2026-04-26T17:06:16.973+05:00  INFO 22205 --- [workly-bot] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
-2026-04-26T17:06:17.026+05:00  INFO 22205 --- [workly-bot] [           main] org.hibernate.orm.jpa                    : HHH008540: Processing PersistenceUnitInfo [name: default]
-2026-04-26T17:06:17.211+05:00  INFO 22205 --- [workly-bot] [           main] org.hibernate.orm.core                   : HHH000001: Hibernate ORM core version 7.2.7.Final
-2026-04-26T17:06:18.296+05:00  INFO 22205 --- [workly-bot] [           main] o.s.o.j.p.SpringPersistenceUnitInfo      : No LoadTimeWeaver setup: ignoring JPA class transformer
-2026-04-26T17:06:18.498+05:00  INFO 22205 --- [workly-bot] [           main] org.hibernate.orm.connections.pooling    : HHH10001005: Database info:
+2026-05-13T15:09:30.765+05:00  INFO 194213 --- [workly-bot] [           main] c.a.worklybot.WorklyBotApplication       : Starting WorklyBotApplication v0.0.1-SNAPSHOT using Java 21.0.10 with PID 194213 (/home/ubuntu/workly-bot/target/workly-bot-0.0.1-SNAPSHOT.jar started by ubuntu in /home/ubuntu/workly-bot)
+2026-05-13T15:09:30.774+05:00  INFO 194213 --- [workly-bot] [           main] c.a.worklybot.WorklyBotApplication       : No active profile set, falling back to 1 default profile: "default"
+2026-05-13T15:09:32.618+05:00  INFO 194213 --- [workly-bot] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-05-13T15:09:32.742+05:00  INFO 194213 --- [workly-bot] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 103 ms. Found 6 JPA repository interfaces.
+2026-05-13T15:09:33.911+05:00  INFO 194213 --- [workly-bot] [           main] o.s.boot.tomcat.TomcatWebServer          : Tomcat initialized with port 8080 (http)
+2026-05-13T15:09:33.942+05:00  INFO 194213 --- [workly-bot] [           main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-05-13T15:09:33.943+05:00  INFO 194213 --- [workly-bot] [           main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/11.0.20]
+2026-05-13T15:09:33.998+05:00  INFO 194213 --- [workly-bot] [           main] b.w.c.s.WebApplicationContextInitializer : Root WebApplicationContext: initialization completed in 3015 ms
+2026-05-13T15:09:34.363+05:00  INFO 194213 --- [workly-bot] [           main] org.hibernate.orm.jpa                    : HHH008540: Processing PersistenceUnitInfo [name: default]
+2026-05-13T15:09:34.508+05:00  INFO 194213 --- [workly-bot] [           main] org.hibernate.orm.core                   : HHH000001: Hibernate ORM core version 7.2.7.Final
+2026-05-13T15:09:35.368+05:00  INFO 194213 --- [workly-bot] [           main] o.s.o.j.p.SpringPersistenceUnitInfo      : No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-05-13T15:09:35.425+05:00  INFO 194213 --- [workly-bot] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
+2026-05-13T15:09:36.325+05:00  INFO 194213 --- [workly-bot] [           main] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@72ceafeb
+2026-05-13T15:09:36.327+05:00  INFO 194213 --- [workly-bot] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
+2026-05-13T15:09:36.564+05:00  INFO 194213 --- [workly-bot] [           main] org.hibernate.orm.connections.pooling    : HHH10001005: Database info:
 	Database JDBC URL [jdbc:postgresql://localhost:5432/telegrambot]
 	Database driver: PostgreSQL JDBC Driver
 	Database dialect: PostgreSQLDialect
@@ -35,65 +35,10 @@ nohup: ignoring input
 	Pool: DataSourceConnectionProvider
 	Minimum pool size: undefined/unknown
 	Maximum pool size: undefined/unknown
-2026-04-26T17:06:20.390+05:00  INFO 22205 --- [workly-bot] [           main] org.hibernate.orm.core                   : HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
-2026-04-26T17:06:20.402+05:00  INFO 22205 --- [workly-bot] [           main] j.LocalContainerEntityManagerFactoryBean : Initialized JPA EntityManagerFactory for persistence unit 'default'
-2026-04-26T17:06:20.593+05:00  INFO 22205 --- [workly-bot] [           main] o.s.d.j.r.query.QueryEnhancerFactories   : Hibernate is in classpath; If applicable, HQL parser will be used.
-OFFICE DEBUG
-latitude = 41.36047
-longitude = 69.226713
-allowedRadiusMeters = 50.0
-workStartTime = 09:00
-2026-04-26T17:06:21.136+05:00  WARN 22205 --- [workly-bot] [           main] JpaBaseConfiguration$JpaWebConfiguration : spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
-2026-04-26T17:06:24.995+05:00  INFO 22205 --- [workly-bot] [           main] o.t.telegrambots.longpolling.BotSession  : Result when calling deleteWebhook: true
-2026-04-26T17:06:25.067+05:00  INFO 22205 --- [workly-bot] [           main] o.s.boot.tomcat.TomcatWebServer          : Tomcat started on port 8080 (http) with context path '/'
-2026-04-26T17:06:25.086+05:00  INFO 22205 --- [workly-bot] [           main] c.a.worklybot.WorklyBotApplication       : Started WorklyBotApplication in 13.499 seconds (process running for 14.843)
-Hibernate: 
-    select
-        e1_0.id,
-        e1_0.active,
-        e1_0.chat_id,
-        e1_0.department,
-        e1_0.full_name,
-        e1_0.role,
-        e1_0.telegram_user_id 
-    from
-        employees e1_0 
-    where
-        e1_0.telegram_user_id=?
-Hibernate: 
-    select
-        e1_0.id,
-        e1_0.active,
-        e1_0.chat_id,
-        e1_0.department,
-        e1_0.full_name,
-        e1_0.role,
-        e1_0.telegram_user_id 
-    from
-        employees e1_0 
-    where
-        e1_0.telegram_user_id=?
-Hibernate: 
-    select
-        e1_0.id,
-        e1_0.active,
-        e1_0.chat_id,
-        e1_0.department,
-        e1_0.full_name,
-        e1_0.role,
-        e1_0.telegram_user_id 
-    from
-        employees e1_0 
-    where
-        e1_0.telegram_user_id=?
-Hibernate: 
-    select
-        a1_0.id,
-        a1_0.arrival_time,
-        a1_0.employee_id,
-        a1_0.leave_time,
-        a1_0.work_date 
-    from
-        attendance a1_0 
-    where
-        a1_0.work_date=?
+2026-05-13T15:09:38.868+05:00  INFO 194213 --- [workly-bot] [           main] org.hibernate.orm.core                   : HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-05-13T15:09:39.066+05:00  INFO 194213 --- [workly-bot] [           main] j.LocalContainerEntityManagerFactoryBean : Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-05-13T15:09:39.300+05:00  INFO 194213 --- [workly-bot] [           main] o.s.d.j.r.query.QueryEnhancerFactories   : Hibernate is in classpath; If applicable, HQL parser will be used.
+2026-05-13T15:09:39.917+05:00  INFO 194213 --- [workly-bot] [           main] c.a.w.config.DatabaseSchemaInitializer   : Ensuring database schema for custom runtime tables and columns
+2026-05-13T15:09:41.311+05:00  INFO 194213 --- [workly-bot] [           main] o.t.telegrambots.longpolling.BotSession  : Result when calling deleteWebhook: true
+2026-05-13T15:09:41.373+05:00  INFO 194213 --- [workly-bot] [           main] o.s.boot.tomcat.TomcatWebServer          : Tomcat started on port 8080 (http) with context path '/'
+2026-05-13T15:09:41.393+05:00  INFO 194213 --- [workly-bot] [           main] c.a.worklybot.WorklyBotApplication       : Started WorklyBotApplication in 11.708 seconds (process running for 13.131)
