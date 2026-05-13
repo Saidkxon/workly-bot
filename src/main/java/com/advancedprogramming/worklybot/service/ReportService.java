@@ -17,6 +17,7 @@ import java.io.ByteArrayOutputStream;
 import java.time.Clock;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -197,6 +198,92 @@ public class ReportService {
         return report.toString();
     }
 
+    public String buildCurrentMonthHistory(Employee employee) {
+        return buildMonthlyHistory(employee, YearMonth.now(appClock));
+    }
+
+    public String buildMonthlyHistory(Employee employee, YearMonth month) {
+        if (employee == null) {
+            return "Xodim topilmadi.";
+        }
+
+        LocalDate startOfMonth = month.atDay(1);
+        LocalDate endOfMonth = month.atEndOfMonth();
+        List<Attendance> attendances = attendanceRepository
+                .findAllByEmployeeAndWorkDateBetweenOrderByWorkDateAsc(employee, startOfMonth, endOfMonth);
+
+        StringBuilder report = new StringBuilder("Oylik kelish-ketish tarixi:\n");
+        report.append("Xodim: ").append(employee.getFullName()).append("\n")
+                .append("Bo'lim: ").append(employee.getDepartment()).append("\n")
+                .append("Oy: ").append(month).append("\n\n");
+
+        if (attendances.isEmpty()) {
+            return report.append("Bu oy uchun davomat yozuvlari topilmadi.").toString();
+        }
+
+        long workedDays = 0;
+        long missingCheckoutDays = 0;
+        long lateDays = 0;
+        long totalWorkedMinutes = 0;
+        long totalLateMinutes = 0;
+
+        for (Attendance attendance : attendances) {
+            long workedMinutes = attendanceService.calculateWorkedMinutes(attendance);
+            long lateMinutes = attendanceService.calculateLateMinutes(attendance);
+
+            if (attendance.getArrivalTime() != null) {
+                workedDays++;
+            }
+
+            if (attendance.getArrivalTime() != null && attendance.getLeaveTime() == null) {
+                missingCheckoutDays++;
+            }
+
+            if (lateMinutes > 0) {
+                lateDays++;
+            }
+
+            totalWorkedMinutes += workedMinutes;
+            totalLateMinutes += lateMinutes;
+
+            report.append("Sana: ").append(attendance.getWorkDate()).append("\n")
+                    .append("Kelgan vaqt: ").append(formatAttendanceTime(attendance.getArrivalTime())).append("\n")
+                    .append("Ketgan vaqt: ").append(formatAttendanceTime(attendance.getLeaveTime())).append("\n")
+                    .append("Ishlangan vaqt: ").append(attendanceService.formatMinutesAsHours(workedMinutes)).append("\n")
+                    .append("Kechikish: ").append(formatLateTime(lateMinutes)).append("\n")
+                    .append("Holat: ").append(attendanceService.calculateLateStatus(attendance)).append("\n")
+                    .append("----------------------\n");
+        }
+
+        report.append("\nXulosa:\n")
+                .append("Kelgan kunlar: ").append(workedDays).append("\n")
+                .append("Ketishni belgilamagan kunlar: ").append(missingCheckoutDays).append("\n")
+                .append("Kechikkan kunlar: ").append(lateDays).append("\n")
+                .append("Jami ishlangan vaqt: ").append(attendanceService.formatMinutesAsHours(totalWorkedMinutes)).append("\n")
+                .append("Jami kechikish: ").append(formatLateTime(totalLateMinutes));
+
+        return report.toString();
+    }
+
+    public String buildEmployeeHistorySelectionText() {
+        List<Employee> employees = employeeRepository.findAllByActiveTrueOrderByFullNameAsc();
+
+        if (employees.isEmpty()) {
+            return "Faol xodimlar topilmadi.";
+        }
+
+        StringBuilder report = new StringBuilder("Tarixini ko'rmoqchi bo'lgan xodimni tanlang:\n\n");
+
+        for (Employee employee : employees) {
+            report.append("Ism familiya: ").append(employee.getFullName()).append("\n")
+                    .append("Bo'lim: ").append(employee.getDepartment()).append("\n")
+                    .append("Tanlash: /history_").append(employee.getTelegramUserId()).append("\n")
+                    .append("----------------------\n");
+        }
+
+        return report.toString();
+    }
+
     public byte[] buildMonthExcelReport() {
         LocalDate now = LocalDate.now(appClock);
         LocalDate startOfMonth = now.withDayOfMonth(1);
@@ -357,6 +444,10 @@ public class ReportService {
 
     private String formatLateTime(long lateMinutes) {
         return attendanceService.formatMinutesAsHours(lateMinutes);
+    }
+
+    private String formatAttendanceTime(java.time.LocalDateTime dateTime) {
+        return dateTime == null ? "Belgilanmagan" : dateTime.toLocalTime().withNano(0).toString();
     }
 
     private static class EmployeeMonthlySummary {

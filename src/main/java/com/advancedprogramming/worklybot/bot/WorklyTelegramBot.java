@@ -27,6 +27,7 @@ import org.telegram.telegrambots.meta.api.objects.InputFile;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
@@ -231,6 +232,41 @@ public class WorklyTelegramBot implements SpringLongPollingBot {
             return;
         }
 
+        if (session.getState() == UserState.WAITING_HISTORY_MONTH) {
+            YearMonth month = parseHistoryMonth(text);
+            if (month == null) {
+                sendPlainMessage(chatId, "Oy formati noto'g'ri. yyyy-MM formatida kiriting. Masalan: 2026-04", telegramClient);
+                return;
+            }
+
+            resetSession(session);
+            sendMainMenu(employee, chatId, telegramClient, reportService.buildMonthlyHistory(employee, month));
+            return;
+        }
+
+        if (session.getState() == UserState.WAITING_MANAGER_HISTORY_MONTH) {
+            if (employee.getRole() != Role.MANAGER && employee.getRole() != Role.ADMIN) {
+                resetSession(session);
+                sendMainMenu(employee, chatId, telegramClient, "Bu amal uchun menejer yoki admin huquqi kerak.");
+                return;
+            }
+
+            YearMonth month = parseHistoryMonth(text);
+            if (month == null) {
+                sendPlainMessage(chatId, "Oy formati noto'g'ri. yyyy-MM formatida kiriting. Masalan: 2026-04", telegramClient);
+                return;
+            }
+
+            Long targetTelegramUserId = session.getHistoryEmployeeTelegramUserId();
+            Employee targetEmployee = targetTelegramUserId == null
+                    ? null
+                    : employeeRepository.findByTelegramUserId(targetTelegramUserId).orElse(null);
+
+            resetSession(session);
+            sendMainMenu(employee, chatId, telegramClient, reportService.buildMonthlyHistory(targetEmployee, month));
+            return;
+        }
+
         if (employee.getRole() == Role.MANAGER || employee.getRole() == Role.ADMIN) {
 
             if (text.equals(BotMessages.CMD_TODAY_REPORT)) {
@@ -260,6 +296,11 @@ public class WorklyTelegramBot implements SpringLongPollingBot {
                     log.error("Failed to prepare month Excel report for chat {}", chatId, exception);
                     sendPlainMessage(chatId, BotMessages.EXCEL_SEND_ERROR, telegramClient);
                 }
+                return;
+            }
+
+            if (text.equals(BotMessages.CMD_EMPLOYEE_HISTORY)) {
+                sendPlainMessage(chatId, reportService.buildEmployeeHistorySelectionText(), telegramClient);
                 return;
             }
 
@@ -461,6 +502,29 @@ public class WorklyTelegramBot implements SpringLongPollingBot {
                 }
                 return;
             }
+
+            if (text.startsWith("/history_")) {
+                try {
+                    Long targetId = Long.parseLong(text.replace("/history_", ""));
+                    Employee targetEmployee = employeeRepository.findByTelegramUserId(targetId).orElse(null);
+
+                    if (targetEmployee == null || !targetEmployee.isActive()) {
+                        sendPlainMessage(chatId, "Faol xodim topilmadi.", telegramClient);
+                        return;
+                    }
+
+                    session.setHistoryEmployeeTelegramUserId(targetId);
+                    session.setState(UserState.WAITING_MANAGER_HISTORY_MONTH);
+                    sendPlainMessage(
+                            chatId,
+                            targetEmployee.getFullName() + " uchun oy kiriting. Format: yyyy-MM. Masalan: 2026-04",
+                            telegramClient
+                    );
+                } catch (Exception e) {
+                    sendPlainMessage(chatId, "Tarix tanlash buyrug'i noto'g'ri.", telegramClient);
+                }
+                return;
+            }
         }
 
         switch (text) {
@@ -481,6 +545,11 @@ public class WorklyTelegramBot implements SpringLongPollingBot {
             case BotMessages.BUTTON_STATUS -> {
                 String statusMessage = attendanceService.getTodayStatus(employee);
                 sendMainMenu(employee, chatId, telegramClient, statusMessage);
+                return;
+            }
+            case BotMessages.BUTTON_HISTORY -> {
+                session.setState(UserState.WAITING_HISTORY_MONTH);
+                sendPlainMessage(chatId, "Qaysi oy tarixini ko'rmoqchisiz? yyyy-MM formatida kiriting. Masalan: 2026-04", telegramClient);
                 return;
             }
             case BotMessages.BUTTON_FIX_MISTAKE -> {
@@ -690,6 +759,7 @@ public class WorklyTelegramBot implements SpringLongPollingBot {
         session.setCorrectionDate(null);
         session.setCorrectionType(null);
         session.setEarlyLeaveReason(null);
+        session.setHistoryEmployeeTelegramUserId(null);
     }
 
     private String formatDistance(double distanceMeters) {
@@ -699,6 +769,14 @@ public class WorklyTelegramBot implements SpringLongPollingBot {
 
         double distanceKm = distanceMeters / 1000.0;
         return String.format("%.2f km", distanceKm);
+    }
+
+    private YearMonth parseHistoryMonth(String text) {
+        try {
+            return YearMonth.parse(text, DateTimeFormatter.ofPattern("yyyy-MM"));
+        } catch (DateTimeParseException exception) {
+            return null;
+        }
     }
 
     private void sendPlainMessage(Long chatId, String text, TelegramClient telegramClient) {
@@ -724,6 +802,7 @@ public class WorklyTelegramBot implements SpringLongPollingBot {
 
         KeyboardRow row2 = new KeyboardRow();
         row2.add(BotMessages.BUTTON_STATUS);
+        row2.add(BotMessages.BUTTON_HISTORY);
 
         KeyboardRow row3 = new KeyboardRow();
         row3.add(BotMessages.BUTTON_FIX_MISTAKE);
@@ -741,6 +820,7 @@ public class WorklyTelegramBot implements SpringLongPollingBot {
 
             KeyboardRow row5 = new KeyboardRow();
             row5.add(BotMessages.CMD_MONTH_EXCEL);
+            row5.add(BotMessages.CMD_EMPLOYEE_HISTORY);
 
             KeyboardRow row6 = new KeyboardRow();
             row6.add(BotMessages.CMD_PENDING_CORRECTIONS);
@@ -887,17 +967,20 @@ public class WorklyTelegramBot implements SpringLongPollingBot {
         return text.equals(BotMessages.BUTTON_ARRIVED)
                 || text.equals(BotMessages.BUTTON_LEFT_WORK)
                 || text.equals(BotMessages.BUTTON_STATUS)
+                || text.equals(BotMessages.BUTTON_HISTORY)
                 || text.equals(BotMessages.BUTTON_FIX_MISTAKE)
                 || text.equals(BotMessages.BUTTON_EARLY_LEAVE)
                 || text.equals(BotMessages.CMD_TODAY_REPORT)
                 || text.equals(BotMessages.CMD_LATE_EMPLOYEES_LIST)
                 || text.equals(BotMessages.CMD_MONTH_REPORT)
                 || text.equals(BotMessages.CMD_MONTH_EXCEL)
+                || text.equals(BotMessages.CMD_EMPLOYEE_HISTORY)
                 || text.equals(BotMessages.CMD_PENDING_CORRECTIONS)
                 || text.equals(BotMessages.CMD_PENDING_EARLY_LEAVES)
                 || text.equals(BotMessages.CMD_PENDING_REGISTRATIONS)
                 || text.equals(BotMessages.CMD_EMPLOYEES)
                 || text.equals(BotMessages.CMD_AUDIT_LOG)
+                || text.startsWith("/history_")
                 || text.startsWith("/activate_")
                 || text.startsWith("/deactivate_pending_")
                 || text.startsWith("/deactivate_")

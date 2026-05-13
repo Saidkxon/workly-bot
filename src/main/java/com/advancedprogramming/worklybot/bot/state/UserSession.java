@@ -14,4 +14,5 @@ public class UserSession {
     private LocalDate correctionDate;
     private String correctionType;
     private String earlyLeaveReason;
+    private Long historyEmployeeTelegramUserId;
 }

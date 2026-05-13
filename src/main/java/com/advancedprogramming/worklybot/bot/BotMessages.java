@@ -134,6 +134,9 @@ public class BotMessages {
     public static final String BUTTON_STATUS =
             "📋 Status";
 
+    public static final String BUTTON_HISTORY =
+            "📅 Tarix";
+
     public static final String BUTTON_FIX_MISTAKE =
             "✏️ Vaqtni o'zgartirish";
 
@@ -144,6 +147,7 @@ public class BotMessages {
     public static final String CMD_LATE_EMPLOYEES_LIST = "/late_employees_list";
     public static final String CMD_MONTH_REPORT = "/oylik_report";
     public static final String CMD_MONTH_EXCEL = "/oylik_excel";
+    public static final String CMD_EMPLOYEE_HISTORY = "/xodim_tarixi";
     public static final String CMD_PENDING_CORRECTIONS = "/vaqtni_o'zgartirish_so'rovlari";
     public static final String CMD_PENDING_EARLY_LEAVES = "/erta_ketish_so'rovlari";
     public static final String CMD_PENDING_REGISTRATIONS = "/yangi_xodimlar";

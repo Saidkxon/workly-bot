@@ -18,6 +18,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZoneId;
+import java.time.YearMonth;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -239,5 +240,87 @@ class ReportServiceTests {
             assertEquals(BotMessages.COLUMN_TOTAL_LATE_TIME, summarySheet.getRow(0).getCell(8).getStringCellValue());
             assertEquals("1 soat 15 daqiqa", summarySheet.getRow(1).getCell(8).getStringCellValue());
         }
+    }
+
+    @Test
+    void monthlyHistoryShowsSelectedEmployeeArrivalAndLeaveTimes() {
+        EmployeeRepository employeeRepository = mock(EmployeeRepository.class);
+        AttendanceRepository attendanceRepository = mock(AttendanceRepository.class);
+        AttendanceService attendanceService = mock(AttendanceService.class);
+
+        Employee employee = Employee.builder()
+                .id(1L)
+                .telegramUserId(101L)
+                .chatId(201L)
+                .fullName("Ali Valiyev")
+                .department("IT")
+                .role(Role.EMPLOYEE)
+                .active(true)
+                .build();
+
+        Attendance attendance = Attendance.builder()
+                .employee(employee)
+                .workDate(LocalDate.of(2026, 4, 24))
+                .arrivalTime(LocalDateTime.of(2026, 4, 24, 9, 17))
+                .leaveTime(LocalDateTime.of(2026, 4, 24, 18, 5))
+                .build();
+
+        when(attendanceRepository.findAllByEmployeeAndWorkDateBetweenOrderByWorkDateAsc(
+                employee,
+                LocalDate.of(2026, 4, 1),
+                LocalDate.of(2026, 4, 30)
+        )).thenReturn(List.of(attendance));
+        when(attendanceService.calculateWorkedMinutes(attendance)).thenReturn(528L);
+        when(attendanceService.calculateLateMinutes(attendance)).thenReturn(17L);
+        when(attendanceService.calculateLateStatus(attendance)).thenReturn(BotMessages.STATUS_LATE);
+        when(attendanceService.formatMinutesAsHours(528L)).thenReturn("8 soat 48 daqiqa");
+        when(attendanceService.formatMinutesAsHours(17L)).thenReturn("0 soat 17 daqiqa");
+
+        ReportService reportService = new ReportService(
+                attendanceRepository,
+                employeeRepository,
+                attendanceService,
+                Clock.fixed(Instant.parse("2026-04-24T06:00:00Z"), ZoneId.of("Asia/Tashkent"))
+        );
+
+        String report = reportService.buildMonthlyHistory(employee, YearMonth.of(2026, 4));
+
+        assertTrue(report.contains("Xodim: Ali Valiyev"));
+        assertTrue(report.contains("Oy: 2026-04"));
+        assertTrue(report.contains("Sana: 2026-04-24"));
+        assertTrue(report.contains("Kelgan vaqt: 09:17"));
+        assertTrue(report.contains("Ketgan vaqt: 18:05"));
+        assertTrue(report.contains("Jami ishlangan vaqt: 8 soat 48 daqiqa"));
+    }
+
+    @Test
+    void employeeHistorySelectionIncludesHistoryCommands() {
+        EmployeeRepository employeeRepository = mock(EmployeeRepository.class);
+        AttendanceRepository attendanceRepository = mock(AttendanceRepository.class);
+        AttendanceService attendanceService = mock(AttendanceService.class);
+
+        Employee employee = Employee.builder()
+                .id(1L)
+                .telegramUserId(101L)
+                .chatId(201L)
+                .fullName("Ali Valiyev")
+                .department("IT")
+                .role(Role.EMPLOYEE)
+                .active(true)
+                .build();
+
+        when(employeeRepository.findAllByActiveTrueOrderByFullNameAsc()).thenReturn(List.of(employee));
+
+        ReportService reportService = new ReportService(
+                attendanceRepository,
+                employeeRepository,
+                attendanceService,
+                Clock.fixed(Instant.parse("2026-04-24T06:00:00Z"), ZoneId.of("Asia/Tashkent"))
+        );
+
+        String report = reportService.buildEmployeeHistorySelectionText();
+
+        assertTrue(report.contains("Ali Valiyev"));
+        assertTrue(report.contains("Tanlash: /history_101"));
     }
 }
