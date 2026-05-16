@@ -18,6 +18,8 @@ Kerakli environment variable'lar:
 - `OFFICE_ALLOWED_RADIUS_METERS`
 - `OFFICE_WORK_START_TIME`
 - `OFFICE_WORK_END_TIME`
+- `APP_BASE_URL` (Mini App uchun HTTPS bazaviy URL, masalan `https://your-app.fly.dev`)
+- `APP_MINI_APP_DEV_AUTH_ENABLED` (ixtiyoriy, lokal brauzer test uchun `true`)
 - `SPRING_JPA_HIBERNATE_DDL_AUTO` (ixtiyoriy, lokalda kerak bo'lsa `update`)
 
 Misol:
@@ -29,6 +31,7 @@ $env:SPRING_DATASOURCE_PASSWORD="postgres"
 $env:BOT_TOKEN="telegram-bot-token"
 $env:BOT_ADMIN_TELEGRAM_USER_IDS="123456789"
 $env:APP_TIME_ZONE="Asia/Tashkent"
+$env:APP_BASE_URL="https://your-app.fly.dev"
 $env:SPRING_JPA_HIBERNATE_DDL_AUTO="update"
 ./mvnw spring-boot:run
 ```
@@ -43,6 +46,8 @@ $env:SPRING_JPA_HIBERNATE_DDL_AUTO="update"
   - `/erta_ketish_so'rovlari`
   - `/audit_log`
 - Oylik hisobot endi Du-Juma bo'yicha rejalashtirilgan ish kunlari, kelmagan kunlar va ketishni belgilamagan kunlarni ham ko'rsatadi.
+- Telegram Mini App paneli `/app/index.html` orqali ochiladi. Bot menyusidagi `🌐 Ilova` tugmasi ishlashi uchun `APP_BASE_URL` sozlangan bo'lishi kerak.
+- Lokal brauzerda sinash uchun vaqtincha `APP_MINI_APP_DEV_AUTH_ENABLED=true` qilib, `/app/index.html?userId=<telegram-user-id>` orqali kirish mumkin.
 
 ## Fly.io ga deploy
 
@@ -74,6 +79,7 @@ fly secrets set \
   OFFICE_ALLOWED_RADIUS_METERS="50.0" \
   OFFICE_WORK_START_TIME="09:00" \
   OFFICE_WORK_END_TIME="18:00" \
+  APP_BASE_URL="https://<app-name>.fly.dev" \
   SPRING_JPA_HIBERNATE_DDL_AUTO="none"
 ```
 

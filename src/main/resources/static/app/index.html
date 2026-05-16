@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="uz">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Workly</title>
+    <link rel="stylesheet" href="/app/styles.css">
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+</head>
+<body>
+<main class="shell">
+    <header class="topbar">
+        <div>
+            <p class="eyebrow">Workly</p>
+            <h1>Davomat paneli</h1>
+        </div>
+        <div class="profile" id="profile">Yuklanmoqda</div>
+    </header>
+
+    <section class="dev-auth" id="devAuth" hidden>
+        <label for="devUserId">Telegram user ID</label>
+        <div class="dev-auth-row">
+            <input id="devUserId" inputmode="numeric" placeholder="Masalan: 123456789">
+            <button id="devLogin">Kirish</button>
+        </div>
+    </section>
+
+    <section class="metrics" id="managerMetrics" hidden>
+        <article>
+            <span>Faol xodimlar</span>
+            <strong id="activeEmployees">0</strong>
+        </article>
+        <article>
+            <span>Yangi xodimlar</span>
+            <strong id="pendingRegistrations">0</strong>
+        </article>
+        <article>
+            <span>Tuzatishlar</span>
+            <strong id="pendingCorrections">0</strong>
+        </article>
+        <article>
+            <span>Erta ketish</span>
+            <strong id="pendingEarlyLeaves">0</strong>
+        </article>
+    </section>
+
+    <section class="panel today-panel">
+        <div class="section-title">
+            <h2>Bugungi holat</h2>
+            <span id="todayDate"></span>
+        </div>
+        <div class="today-grid" id="todayGrid"></div>
+    </section>
+
+    <section class="panel">
+        <div class="section-title">
+            <h2>Oylik tarix</h2>
+            <input id="monthPicker" type="month">
+        </div>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                <tr>
+                    <th>Sana</th>
+                    <th>Kelgan</th>
+                    <th>Ketgan</th>
+                    <th>Ishlangan</th>
+                    <th>Kechikish</th>
+                    <th>Holat</th>
+                </tr>
+                </thead>
+                <tbody id="historyBody"></tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="panel" id="managerPanel" hidden>
+        <div class="section-title">
+            <h2>Xodimlar tarixi</h2>
+            <select id="employeeSelect"></select>
+        </div>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                <tr>
+                    <th>Sana</th>
+                    <th>Kelgan</th>
+                    <th>Ketgan</th>
+                    <th>Ishlangan</th>
+                    <th>Kechikish</th>
+                    <th>Holat</th>
+                </tr>
+                </thead>
+                <tbody id="employeeHistoryBody"></tbody>
+            </table>
+        </div>
+    </section>
+
+    <p class="error" id="errorBox" hidden></p>
+</main>
+<script src="/app/app.js"></script>
+</body>
+</html>

@@ -10,6 +10,7 @@ import com.advancedprogramming.worklybot.repository.EmployeeRepository;
 import com.advancedprogramming.worklybot.service.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.client.okhttp.OkHttpTelegramClient;
 import org.telegram.telegrambots.longpolling.interfaces.LongPollingUpdateConsumer;
@@ -17,9 +18,13 @@ import org.telegram.telegrambots.longpolling.starter.SpringLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.location.Location;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardRow;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardButton;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
+import org.telegram.telegrambots.meta.api.objects.webapp.WebAppInfo;
 import org.telegram.telegrambots.meta.generics.TelegramClient;
 import org.telegram.telegrambots.meta.api.methods.send.SendDocument;
 import org.telegram.telegrambots.meta.api.objects.InputFile;
@@ -54,6 +59,9 @@ public class WorklyTelegramBot implements SpringLongPollingBot {
     private final AuditLogService auditLogService;
 
     private final Map<Long, UserSession> sessions = new ConcurrentHashMap<>();
+
+    @Value("${app.base-url:}")
+    private String appBaseUrl;
 
     @Override
     public String getBotToken() {
@@ -552,6 +560,10 @@ public class WorklyTelegramBot implements SpringLongPollingBot {
                 sendPlainMessage(chatId, "Qaysi oy tarixini ko'rmoqchisiz? yyyy-MM formatida kiriting. Masalan: 2026-04", telegramClient);
                 return;
             }
+            case BotMessages.BUTTON_OPEN_APP -> {
+                sendAppLink(chatId, telegramClient);
+                return;
+            }
             case BotMessages.BUTTON_FIX_MISTAKE -> {
                 session.setState(UserState.WAITING_CORRECTION_DATE);
                 sendPlainMessage(chatId, BotMessages.ENTER_CORRECTION_DATE, telegramClient);
@@ -795,6 +807,53 @@ public class WorklyTelegramBot implements SpringLongPollingBot {
         }
     }
 
+    private void sendAppLink(Long chatId, TelegramClient telegramClient) {
+        if (appBaseUrl == null || appBaseUrl.isBlank()) {
+            sendPlainMessage(
+                    chatId,
+                    "Mini app havolasi sozlanmagan. APP_BASE_URL ni masalan https://your-domain.com qilib bering.",
+                    telegramClient
+            );
+            return;
+        }
+
+        String appUrl = buildMiniAppUrl(appBaseUrl);
+        InlineKeyboardButton button = InlineKeyboardButton.builder()
+                .text("Workly ilovasini ochish")
+                .webApp(WebAppInfo.builder().url(appUrl).build())
+                .build();
+
+        InlineKeyboardRow row = new InlineKeyboardRow();
+        row.add(button);
+
+        InlineKeyboardMarkup markup = InlineKeyboardMarkup.builder()
+                .keyboard(List.of(row))
+                .build();
+
+        try {
+            telegramClient.execute(
+                    SendMessage.builder()
+                            .chatId(chatId.toString())
+                            .text("Workly panelini oching:")
+                            .replyMarkup(markup)
+                            .build()
+            );
+        } catch (Exception e) {
+            log.error("Failed to send app link to chat {}", chatId, e);
+        }
+    }
+
+    private String buildMiniAppUrl(String baseUrl) {
+        String normalizedBaseUrl = baseUrl.replaceAll("/+$", "");
+        if (normalizedBaseUrl.endsWith("/app/index.html")) {
+            return normalizedBaseUrl;
+        }
+        if (normalizedBaseUrl.endsWith("/app")) {
+            return normalizedBaseUrl + "/index.html";
+        }
+        return normalizedBaseUrl + "/app/index.html";
+    }
+
     private void sendMainMenu(Employee employee, Long chatId, TelegramClient telegramClient, String text) {
         KeyboardRow row1 = new KeyboardRow();
         row1.add(BotMessages.BUTTON_ARRIVED);
@@ -808,10 +867,14 @@ public class WorklyTelegramBot implements SpringLongPollingBot {
         row3.add(BotMessages.BUTTON_FIX_MISTAKE);
         row3.add(BotMessages.BUTTON_EARLY_LEAVE);
 
+        KeyboardRow rowApp = new KeyboardRow();
+        rowApp.add(BotMessages.BUTTON_OPEN_APP);
+
         List<KeyboardRow> keyboard = new ArrayList<>();
         keyboard.add(row1);
         keyboard.add(row2);
         keyboard.add(row3);
+        keyboard.add(rowApp);
 
         if (employee != null && (employee.getRole() == Role.MANAGER || employee.getRole() == Role.ADMIN)) {
             KeyboardRow row4 = new KeyboardRow();
@@ -968,6 +1031,7 @@ public class WorklyTelegramBot implements SpringLongPollingBot {
                 || text.equals(BotMessages.BUTTON_LEFT_WORK)
                 || text.equals(BotMessages.BUTTON_STATUS)
                 || text.equals(BotMessages.BUTTON_HISTORY)
+                || text.equals(BotMessages.BUTTON_OPEN_APP)
                 || text.equals(BotMessages.BUTTON_FIX_MISTAKE)
                 || text.equals(BotMessages.BUTTON_EARLY_LEAVE)
                 || text.equals(BotMessages.CMD_TODAY_REPORT)

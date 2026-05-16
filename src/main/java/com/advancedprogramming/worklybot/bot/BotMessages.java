@@ -137,6 +137,9 @@ public class BotMessages {
     public static final String BUTTON_HISTORY =
             "📅 Tarix";
 
+    public static final String BUTTON_OPEN_APP =
+            "🌐 Ilova";
+
     public static final String BUTTON_FIX_MISTAKE =
             "✏️ Vaqtni o'zgartirish";
 
