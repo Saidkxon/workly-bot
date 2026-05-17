@@ -17,6 +17,7 @@ import java.util.List;
 public class AuditLogService {
 
     private static final DateTimeFormatter AUDIT_TIME_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+    private static final int MAX_DETAILS_LENGTH = 1000;
 
     private final AuditLogRepository auditLogRepository;
     private final Clock appClock;
@@ -33,10 +34,47 @@ public class AuditLogService {
                         .actorName(actor.getFullName())
                         .targetTelegramUserId(target == null ? null : target.getTelegramUserId())
                         .targetName(target == null ? null : target.getFullName())
-                        .details(details)
+                        .details(limitDetails(details))
                         .createdAt(LocalDateTime.now(appClock))
                         .build()
         );
+    }
+
+    public void logActivity(Employee actor, String activity) {
+        if (actor == null || activity == null || activity.isBlank()) {
+            return;
+        }
+
+        logAction(
+                AuditActionType.USER_ACTIVITY,
+                actor,
+                null,
+                "Rol: " + actor.getRole() + ". Amal: " + activity
+        );
+    }
+
+    public String getRecentActivitiesText() {
+        List<AuditLog> logs = auditLogRepository.findTop50ByActionTypeOrderByCreatedAtDesc(AuditActionType.USER_ACTIVITY);
+
+        if (logs.isEmpty()) {
+            return "Activities hozircha bo'sh.";
+        }
+
+        StringBuilder sb = new StringBuilder("Oxirgi activities:\n\n");
+
+        for (AuditLog log : logs) {
+            sb.append("Vaqt: ").append(log.getCreatedAt().format(AUDIT_TIME_FORMAT)).append("\n")
+                    .append("Kim bajardi: ").append(log.getActorName())
+                    .append(" (").append(log.getActorTelegramUserId()).append(")\n");
+
+            if (log.getDetails() != null && !log.getDetails().isBlank()) {
+                sb.append("Tafsilot: ").append(log.getDetails()).append("\n");
+            }
+
+            sb.append("----------------------\n");
+        }
+
+        return sb.toString();
     }
 
     public String getRecentActivityText() {
@@ -72,5 +110,13 @@ public class AuditLogService {
         }
 
         return sb.toString();
+    }
+
+    private String limitDetails(String details) {
+        if (details == null || details.length() <= MAX_DETAILS_LENGTH) {
+            return details;
+        }
+
+        return details.substring(0, MAX_DETAILS_LENGTH);
     }
 }

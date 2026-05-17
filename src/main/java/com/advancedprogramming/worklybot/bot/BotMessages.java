@@ -155,6 +155,7 @@ public class BotMessages {
     public static final String CMD_PENDING_EARLY_LEAVES = "/erta_ketish_so'rovlari";
     public static final String CMD_PENDING_REGISTRATIONS = "/yangi_xodimlar";
     public static final String CMD_AUDIT_LOG = "/audit_log";
+    public static final String CMD_ACTIVITIES = "/activities";
     public static final String CMD_EMPLOYEES = "/Ishchilar";
 
     public static final String DAILY_REPORT_SHEET = "Kunlik hisobot";

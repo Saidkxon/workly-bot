@@ -189,6 +189,7 @@ public class WorklyTelegramBot implements SpringLongPollingBot {
             String message = correctionService.createCorrectionRequest(employee, session, text);
             if (message.startsWith("Tuzatish so'rovi yuborildi")) {
                 notifyManagersAboutCorrectionRequest(employee, session.getCorrectionDate(), telegramClient);
+                logActivity(employee, "Tuzatish so'rovi yubordi: " + session.getCorrectionDate());
                 resetSession(session);
                 sendMainMenu(employee, chatId, telegramClient, message);
             } else {
@@ -218,6 +219,7 @@ public class WorklyTelegramBot implements SpringLongPollingBot {
             String message = earlyLeaveService.createRequest(employee, text);
             if (message.startsWith("Erta ketish so'rovi menejerga yuborildi")) {
                 notifyManagersAboutEarlyLeaveRequest(employee, telegramClient);
+                logActivity(employee, "Erta ketish so'rovi yubordi");
                 resetSession(session);
                 sendMainMenu(employee, chatId, telegramClient, message);
             } else {
@@ -248,6 +250,7 @@ public class WorklyTelegramBot implements SpringLongPollingBot {
             }
 
             resetSession(session);
+            logActivity(employee, "Tarix oyi tanlandi: " + month);
             sendMainMenu(employee, chatId, telegramClient, reportService.buildMonthlyHistory(employee, month));
             return;
         }
@@ -271,28 +274,53 @@ public class WorklyTelegramBot implements SpringLongPollingBot {
                     : employeeRepository.findByTelegramUserId(targetTelegramUserId).orElse(null);
 
             resetSession(session);
+            logActivity(employee, "Xodim tarixi oyi tanlandi: " + month);
             sendMainMenu(employee, chatId, telegramClient, reportService.buildMonthlyHistory(targetEmployee, month));
+            return;
+        }
+
+        if (text.equals(BotMessages.CMD_ACTIVITIES)) {
+            if (employee.getRole() != Role.ADMIN) {
+                sendMainMenu(employee, chatId, telegramClient, "Bu amal faqat adminlar uchun.");
+                return;
+            }
+
+            sendPlainMessage(chatId, auditLogService.getRecentActivitiesText(), telegramClient);
+            return;
+        }
+
+        if (text.equals(BotMessages.CMD_AUDIT_LOG)) {
+            if (employee.getRole() != Role.ADMIN) {
+                sendMainMenu(employee, chatId, telegramClient, "Bu amal faqat adminlar uchun.");
+                return;
+            }
+
+            sendPlainMessage(chatId, auditLogService.getRecentActivityText(), telegramClient);
             return;
         }
 
         if (employee.getRole() == Role.MANAGER || employee.getRole() == Role.ADMIN) {
 
             if (text.equals(BotMessages.CMD_TODAY_REPORT)) {
+                logActivity(employee, text);
                 sendPlainMessage(chatId, reportService.buildTodayReport(), telegramClient);
                 return;
             }
 
             if (text.equals(BotMessages.CMD_LATE_EMPLOYEES_LIST)) {
+                logActivity(employee, text);
                 sendPlainMessage(chatId, reportService.buildTodayLateEmployeesList(), telegramClient);
                 return;
             }
 
             if (text.equals(BotMessages.CMD_MONTH_REPORT)) {
+                logActivity(employee, text);
                 sendPlainMessage(chatId, reportService.buildMonthReport(), telegramClient);
                 return;
             }
 
             if (text.equals(BotMessages.CMD_MONTH_EXCEL)) {
+                logActivity(employee, text);
                 try {
                     byte[] fileBytes = reportService.buildMonthExcelReport();
                     if (fileBytes == null) {
@@ -308,36 +336,37 @@ public class WorklyTelegramBot implements SpringLongPollingBot {
             }
 
             if (text.equals(BotMessages.CMD_EMPLOYEE_HISTORY)) {
+                logActivity(employee, text);
                 sendPlainMessage(chatId, reportService.buildEmployeeHistorySelectionText(), telegramClient);
                 return;
             }
 
             if (text.equals(BotMessages.CMD_PENDING_CORRECTIONS)) {
+                logActivity(employee, text);
                 sendPlainMessage(chatId, correctionService.getPendingCorrectionsText(), telegramClient);
                 return;
             }
 
             if (text.equals(BotMessages.CMD_PENDING_EARLY_LEAVES)) {
+                logActivity(employee, text);
                 sendPlainMessage(chatId, earlyLeaveService.getPendingRequestsText(), telegramClient);
                 return;
             }
 
             if (text.equals(BotMessages.CMD_PENDING_REGISTRATIONS)) {
+                logActivity(employee, text);
                 sendPlainMessage(chatId, pendingRegistrationService.getPendingRegistrationsText(), telegramClient);
                 return;
             }
 
             if (text.equals(BotMessages.CMD_EMPLOYEES)) {
+                logActivity(employee, text);
                 sendPlainMessage(chatId, employeeService.getAllEmployeesText(), telegramClient);
                 return;
             }
 
-            if (text.equals(BotMessages.CMD_AUDIT_LOG)) {
-                sendPlainMessage(chatId, auditLogService.getRecentActivityText(), telegramClient);
-                return;
-            }
-
             if (text.startsWith("/activate_")) {
+                logActivity(employee, "/activate_*");
                 try {
                     Long targetId = Long.parseLong(text.replace("/activate_", ""));
                     PendingRegistration pendingRegistrationToApprove =
@@ -368,6 +397,7 @@ public class WorklyTelegramBot implements SpringLongPollingBot {
             }
 
             if (text.startsWith("/deactivate_pending_")) {
+                logActivity(employee, "/deactivate_pending_*");
                 try {
                     Long targetId = Long.parseLong(text.replace("/deactivate_pending_", ""));
                     PendingRegistrationActionResult result = pendingRegistrationService
@@ -384,6 +414,7 @@ public class WorklyTelegramBot implements SpringLongPollingBot {
             }
 
             if (text.startsWith("/deactivate_")) {
+                logActivity(employee, "/deactivate_*");
                 try {
                     Long targetId = Long.parseLong(text.replace("/deactivate_", ""));
                     String result = employeeService.deactivateEmployee(employee.getTelegramUserId(), targetId);
@@ -401,6 +432,7 @@ public class WorklyTelegramBot implements SpringLongPollingBot {
             }
 
             if (text.startsWith("/make_manager_")) {
+                logActivity(employee, "/make_manager_*");
                 try {
                     Long targetId = Long.parseLong(text.replace("/make_manager_", ""));
                     String result = roleService.makeManager(employee.getTelegramUserId(), targetId);
@@ -418,6 +450,7 @@ public class WorklyTelegramBot implements SpringLongPollingBot {
             }
 
             if (text.startsWith("/make_employee_")) {
+                logActivity(employee, "/make_employee_*");
                 try {
                     Long targetId = Long.parseLong(text.replace("/make_employee_", ""));
                     String result = roleService.makeEmployee(employee.getTelegramUserId(), targetId);
@@ -435,6 +468,7 @@ public class WorklyTelegramBot implements SpringLongPollingBot {
             }
 
             if (text.startsWith("/make_admin_")) {
+                logActivity(employee, "/make_admin_*");
                 try {
                     Long targetId = Long.parseLong(text.replace("/make_admin_", ""));
                     String result = roleService.makeAdmin(employee.getTelegramUserId(), targetId);
@@ -452,6 +486,7 @@ public class WorklyTelegramBot implements SpringLongPollingBot {
             }
 
             if (text.startsWith("/approve_early_")) {
+                logActivity(employee, "/approve_early_*");
                 try {
                     Long requestId = Long.parseLong(text.replace("/approve_early_", ""));
                     CorrectionActionResult result = earlyLeaveService.approve(requestId, employee.getTelegramUserId());
@@ -467,6 +502,7 @@ public class WorklyTelegramBot implements SpringLongPollingBot {
             }
 
             if (text.startsWith("/reject_early_")) {
+                logActivity(employee, "/reject_early_*");
                 try {
                     Long requestId = Long.parseLong(text.replace("/reject_early_", ""));
                     CorrectionActionResult result = earlyLeaveService.reject(requestId, employee.getTelegramUserId());
@@ -482,6 +518,7 @@ public class WorklyTelegramBot implements SpringLongPollingBot {
             }
 
             if (text.startsWith("/approve_")) {
+                logActivity(employee, "/approve_*");
                 try {
                     Long requestId = Long.parseLong(text.replace("/approve_", ""));
                     CorrectionActionResult result = correctionService.approveCorrection(requestId, employee.getTelegramUserId());
@@ -497,6 +534,7 @@ public class WorklyTelegramBot implements SpringLongPollingBot {
             }
 
             if (text.startsWith("/reject_")) {
+                logActivity(employee, "/reject_*");
                 try {
                     Long requestId = Long.parseLong(text.replace("/reject_", ""));
                     CorrectionActionResult result = correctionService.rejectCorrection(requestId, employee.getTelegramUserId());
@@ -512,6 +550,7 @@ public class WorklyTelegramBot implements SpringLongPollingBot {
             }
 
             if (text.startsWith("/history_")) {
+                logActivity(employee, "/history_*");
                 try {
                     Long targetId = Long.parseLong(text.replace("/history_", ""));
                     Employee targetEmployee = employeeRepository.findByTelegramUserId(targetId).orElse(null);
@@ -537,11 +576,13 @@ public class WorklyTelegramBot implements SpringLongPollingBot {
 
         switch (text) {
             case BotMessages.BUTTON_ARRIVED -> {
+                logActivity(employee, text);
                 session.setState(UserState.WAITING_ARRIVAL_LOCATION);
                 requestLocation(chatId, BotMessages.SHARE_LOCATION_FOR_ARRIVAL, telegramClient);
                 return;
             }
             case BotMessages.BUTTON_LEFT_WORK -> {
+                logActivity(employee, text);
                 if (!attendanceService.canMarkLeaving(employee)) {
                     sendMainMenu(employee, chatId, telegramClient, attendanceService.getLeavingNotAllowedMessage());
                     return;
@@ -551,25 +592,30 @@ public class WorklyTelegramBot implements SpringLongPollingBot {
                 return;
             }
             case BotMessages.BUTTON_STATUS -> {
+                logActivity(employee, text);
                 String statusMessage = attendanceService.getTodayStatus(employee);
                 sendMainMenu(employee, chatId, telegramClient, statusMessage);
                 return;
             }
             case BotMessages.BUTTON_HISTORY -> {
+                logActivity(employee, text);
                 session.setState(UserState.WAITING_HISTORY_MONTH);
                 sendPlainMessage(chatId, "Qaysi oy tarixini ko'rmoqchisiz? yyyy-MM formatida kiriting. Masalan: 2026-04", telegramClient);
                 return;
             }
             case BotMessages.BUTTON_OPEN_APP -> {
+                logActivity(employee, text);
                 sendAppLink(chatId, telegramClient);
                 return;
             }
             case BotMessages.BUTTON_FIX_MISTAKE -> {
+                logActivity(employee, text);
                 session.setState(UserState.WAITING_CORRECTION_DATE);
                 sendPlainMessage(chatId, BotMessages.ENTER_CORRECTION_DATE, telegramClient);
                 return;
             }
             case BotMessages.BUTTON_EARLY_LEAVE -> {
+                logActivity(employee, text);
                 session.setState(UserState.WAITING_EARLY_LEAVE_REASON);
                 sendPlainMessage(chatId, BotMessages.ENTER_EARLY_LEAVE_REASON, telegramClient);
                 return;
@@ -639,6 +685,7 @@ public class WorklyTelegramBot implements SpringLongPollingBot {
         if (session.getState() == UserState.WAITING_ARRIVAL_LOCATION) {
             session.setState(UserState.NONE);
             String message = attendanceService.saveArrivalAfterLocationCheck(employee);
+            logActivity(employee, "Kelish joylashuvi tasdiqlandi");
             sendMainMenu(employee, chatId, telegramClient, message);
             return;
         }
@@ -646,6 +693,7 @@ public class WorklyTelegramBot implements SpringLongPollingBot {
         if (session.getState() == UserState.WAITING_LEAVING_LOCATION) {
             session.setState(UserState.NONE);
             String message = attendanceService.saveLeavingAfterLocationCheck(employee);
+            logActivity(employee, "Ketish joylashuvi tasdiqlandi");
             sendMainMenu(employee, chatId, telegramClient, message);
             return;
         }
@@ -653,6 +701,7 @@ public class WorklyTelegramBot implements SpringLongPollingBot {
         if (earlyLeaveService.hasApprovedRequestForToday(employee) && attendanceService.hasOpenAttendanceForToday(employee)) {
             session.setState(UserState.NONE);
             String message = attendanceService.saveLeavingAfterLocationCheck(employee);
+            logActivity(employee, "Tasdiqlangan erta ketish joylashuvi yuborildi");
             sendMainMenu(employee, chatId, telegramClient, message);
             return;
         }
@@ -772,6 +821,14 @@ public class WorklyTelegramBot implements SpringLongPollingBot {
         session.setCorrectionType(null);
         session.setEarlyLeaveReason(null);
         session.setHistoryEmployeeTelegramUserId(null);
+    }
+
+    private void logActivity(Employee employee, String activity) {
+        try {
+            auditLogService.logActivity(employee, activity);
+        } catch (RuntimeException exception) {
+            log.warn("Failed to save activity log for user {}", employee == null ? null : employee.getTelegramUserId(), exception);
+        }
     }
 
     private String formatDistance(double distanceMeters) {
@@ -896,14 +953,19 @@ public class WorklyTelegramBot implements SpringLongPollingBot {
             row8.add(BotMessages.CMD_PENDING_REGISTRATIONS);
 
             KeyboardRow row9 = new KeyboardRow();
-            row9.add(BotMessages.CMD_AUDIT_LOG);
+            if (employee.getRole() == Role.ADMIN) {
+                row9.add(BotMessages.CMD_ACTIVITIES);
+                row9.add(BotMessages.CMD_AUDIT_LOG);
+            }
 
             keyboard.add(row4);
             keyboard.add(row5);
             keyboard.add(row6);
             keyboard.add(row7);
             keyboard.add(row8);
-            keyboard.add(row9);
+            if (!row9.isEmpty()) {
+                keyboard.add(row9);
+            }
         }
 
         ReplyKeyboardMarkup replyKeyboardMarkup = new ReplyKeyboardMarkup(
@@ -1044,6 +1106,7 @@ public class WorklyTelegramBot implements SpringLongPollingBot {
                 || text.equals(BotMessages.CMD_PENDING_REGISTRATIONS)
                 || text.equals(BotMessages.CMD_EMPLOYEES)
                 || text.equals(BotMessages.CMD_AUDIT_LOG)
+                || text.equals(BotMessages.CMD_ACTIVITIES)
                 || text.startsWith("/history_")
                 || text.startsWith("/activate_")
                 || text.startsWith("/deactivate_pending_")
