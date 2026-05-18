@@ -95,7 +95,7 @@ public class WorklyTelegramBot implements SpringLongPollingBot {
         if (text.equals("/start")) {
             employeeRepository.findByTelegramUserId(telegramUserId)
                     .filter(Employee::isActive)
-                    .ifPresent(employee -> logActivity(employee, text));
+                    .ifPresent(employee -> saveActivity(employee, text));
             resetSession(session);
             handleStart(telegramUserId, chatId, session, telegramClient);
             return;
@@ -104,7 +104,7 @@ public class WorklyTelegramBot implements SpringLongPollingBot {
         if (text.equals("/cancel")) {
             employeeRepository.findByTelegramUserId(telegramUserId)
                     .filter(Employee::isActive)
-                    .ifPresent(employee -> logActivity(employee, text));
+                    .ifPresent(employee -> saveActivity(employee, text));
             resetSession(session);
 
             Employee employee = employeeRepository.findByTelegramUserId(telegramUserId).orElse(null);
@@ -147,7 +147,7 @@ public class WorklyTelegramBot implements SpringLongPollingBot {
         PendingRegistration pendingRegistration = pendingRegistrationService.findByTelegramUserId(telegramUserId);
 
         if (employee != null && employee.isActive()) {
-            logActivity(employee, describeTextActivity(session, text));
+            saveActivity(employee, describeTextActivity(session, text));
         }
 
         if (session.getState() == UserState.WAITING_CORRECTION_DATE) {
@@ -291,7 +291,17 @@ public class WorklyTelegramBot implements SpringLongPollingBot {
                 return;
             }
 
-            sendPlainMessage(chatId, auditLogService.getRecentActivitiesText(), telegramClient);
+            String activitiesText = auditLogService.getRecentActivitiesText();
+            if ("Activities hozircha bo'sh.".equals(activitiesText)) {
+                sendPlainMessage(
+                        chatId,
+                        "Activities hozircha bo'sh.\n\nAgar siz hozir /activities yuborgan bo'lsangiz, demak activity yozuvi bazaga saqlanmayapti yoki serverda eski versiya ishlayapti. EC2 loglardan \"Failed to save activity log\" xatosini tekshiring.",
+                        telegramClient
+                );
+                return;
+            }
+
+            sendPlainMessage(chatId, activitiesText, telegramClient);
             return;
         }
 
@@ -620,7 +630,7 @@ public class WorklyTelegramBot implements SpringLongPollingBot {
             return;
         }
 
-        logActivity(employee, describeLocationActivity(session));
+        saveActivity(employee, describeLocationActivity(session));
 
         if (update.getMessage().getForwardOrigin() != null) {
             sendPlainMessage(
@@ -800,11 +810,13 @@ public class WorklyTelegramBot implements SpringLongPollingBot {
         session.setHistoryEmployeeTelegramUserId(null);
     }
 
-    private void logActivity(Employee employee, String activity) {
+    private boolean saveActivity(Employee employee, String activity) {
         try {
             auditLogService.logActivity(employee, activity);
+            return true;
         } catch (RuntimeException exception) {
             log.error("Failed to save activity log for user {}", employee == null ? null : employee.getTelegramUserId(), exception);
+            return false;
         }
     }
 
