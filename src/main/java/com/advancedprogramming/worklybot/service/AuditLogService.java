@@ -27,7 +27,7 @@ public class AuditLogService {
             return;
         }
 
-        auditLogRepository.save(
+        auditLogRepository.saveAndFlush(
                 AuditLog.builder()
                         .actionType(actionType)
                         .actorTelegramUserId(actor.getTelegramUserId())
