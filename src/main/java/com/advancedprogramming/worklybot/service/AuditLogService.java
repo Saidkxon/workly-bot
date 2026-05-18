@@ -54,7 +54,7 @@ public class AuditLogService {
     }
 
     public String getRecentActivitiesText() {
-        List<AuditLog> logs = auditLogRepository.findTop50ByActionTypeOrderByCreatedAtDesc(AuditActionType.USER_ACTIVITY);
+        List<AuditLog> logs = getRecentActivities();
 
         if (logs.isEmpty()) {
             return "Activities hozircha bo'sh.";
@@ -75,6 +75,10 @@ public class AuditLogService {
         }
 
         return sb.toString();
+    }
+
+    public List<AuditLog> getRecentActivities() {
+        return auditLogRepository.findTop50ByActionTypeOrderByCreatedAtDesc(AuditActionType.USER_ACTIVITY);
     }
 
     public String getRecentActivityText() {

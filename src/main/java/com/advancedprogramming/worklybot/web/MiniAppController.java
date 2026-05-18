@@ -1,6 +1,8 @@
 package com.advancedprogramming.worklybot.web;
 
+import com.advancedprogramming.worklybot.bot.BotMessages;
 import com.advancedprogramming.worklybot.config.BotProperties;
+import com.advancedprogramming.worklybot.entity.AuditLog;
 import com.advancedprogramming.worklybot.entity.Attendance;
 import com.advancedprogramming.worklybot.entity.Employee;
 import com.advancedprogramming.worklybot.entity.enums.CorrectionStatus;
@@ -11,6 +13,7 @@ import com.advancedprogramming.worklybot.repository.EarlyLeaveRequestRepository;
 import com.advancedprogramming.worklybot.repository.EmployeeRepository;
 import com.advancedprogramming.worklybot.repository.PendingRegistrationRepository;
 import com.advancedprogramming.worklybot.service.AttendanceService;
+import com.advancedprogramming.worklybot.service.AuditLogService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
@@ -49,6 +52,7 @@ public class MiniAppController {
     private final EarlyLeaveRequestRepository earlyLeaveRequestRepository;
     private final PendingRegistrationRepository pendingRegistrationRepository;
     private final AttendanceService attendanceService;
+    private final AuditLogService auditLogService;
     private final Clock appClock;
 
     @Value("${app.mini-app.dev-auth-enabled:true}")
@@ -76,6 +80,7 @@ public class MiniAppController {
 
         ManagerSummary managerSummary = null;
         List<EmployeeOption> employees = List.of();
+        TodayReport todayReport = null;
         if (isManager(employee)) {
             managerSummary = new ManagerSummary(
                     employeeRepository.findAllByActiveTrue().size(),
@@ -87,14 +92,17 @@ public class MiniAppController {
                     .stream()
                     .map(this::toEmployeeOption)
                     .toList();
+            todayReport = buildTodayReport(today, employees);
         }
 
         DashboardResponse response = new DashboardResponse(
                 toEmployeeProfile(employee),
+                today.toString(),
                 todayAttendance == null ? null : toAttendanceRow(todayAttendance),
                 history,
                 managerSummary,
-                employees
+                employees,
+                todayReport
         );
         return ResponseEntity.ok(response);
     }
@@ -124,6 +132,24 @@ public class MiniAppController {
                 )
                 .stream()
                 .map(this::toAttendanceRow)
+                .toList();
+
+        return ResponseEntity.ok(rows);
+    }
+
+    @GetMapping("/activities")
+    public ResponseEntity<List<ActivityRow>> activities(
+            @RequestHeader(value = "X-Telegram-Init-Data", required = false) String initData,
+            @RequestParam(value = "userId", required = false) Long devUserId
+    ) {
+        Employee requester = resolveEmployee(initData, devUserId);
+        if (!isAdmin(requester)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Admin access required.");
+        }
+
+        List<ActivityRow> rows = auditLogService.getRecentActivities()
+                .stream()
+                .map(this::toActivityRow)
                 .toList();
 
         return ResponseEntity.ok(rows);
@@ -221,6 +247,10 @@ public class MiniAppController {
         return employee.getRole() == Role.MANAGER || employee.getRole() == Role.ADMIN;
     }
 
+    private boolean isAdmin(Employee employee) {
+        return employee.getRole() == Role.ADMIN;
+    }
+
     private EmployeeProfile toEmployeeProfile(Employee employee) {
         return new EmployeeProfile(
                 employee.getTelegramUserId(),
@@ -250,12 +280,95 @@ public class MiniAppController {
         );
     }
 
+    private ActivityRow toActivityRow(AuditLog auditLog) {
+        return new ActivityRow(
+                auditLog.getCreatedAt().toString(),
+                auditLog.getActorTelegramUserId(),
+                auditLog.getActorName(),
+                auditLog.getDetails()
+        );
+    }
+
+    private TodayReport buildTodayReport(LocalDate today, List<EmployeeOption> employees) {
+        Map<Long, Attendance> attendanceByEmployeeId = new HashMap<>();
+        for (Attendance attendance : attendanceRepository.findAllByWorkDate(today)) {
+            attendanceByEmployeeId.put(attendance.getEmployee().getId(), attendance);
+        }
+
+        long arrivedCount = 0;
+        long absentCount = 0;
+        long missingCheckoutCount = 0;
+        long lateCount = 0;
+
+        List<TodayReportRow> rows = employeeRepository.findAllByActiveTrueOrderByFullNameAsc()
+                .stream()
+                .map(employee -> {
+                    Attendance attendance = attendanceByEmployeeId.get(employee.getId());
+                    String arrival = null;
+                    String leaving = null;
+                    String status = BotMessages.STATUS_ABSENT;
+                    String lateTime = "0 soat 0 daqiqa";
+
+                    if (attendance != null) {
+                        if (attendance.getArrivalTime() != null) {
+                            arrival = attendance.getArrivalTime().toLocalTime().withNano(0).toString();
+                        }
+
+                        if (attendance.getLeaveTime() != null) {
+                            leaving = attendance.getLeaveTime().toLocalTime().withNano(0).toString();
+                        }
+
+                        long lateMinutes = attendanceService.calculateLateMinutes(attendance);
+                        status = attendanceService.calculateLateStatus(attendance);
+                        lateTime = attendanceService.formatMinutesAsHours(lateMinutes);
+                    }
+
+                    return new TodayReportRow(
+                            employee.getFullName(),
+                            employee.getDepartment(),
+                            arrival,
+                            leaving,
+                            lateTime,
+                            status
+                    );
+                })
+                .toList();
+
+        for (TodayReportRow row : rows) {
+            if (row.arrivalTime() == null) {
+                absentCount++;
+            } else {
+                arrivedCount++;
+            }
+
+            if (row.arrivalTime() != null && row.leaveTime() == null) {
+                missingCheckoutCount++;
+            }
+
+            if (!"0 soat 0 daqiqa".equals(row.lateTime())) {
+                lateCount++;
+            }
+        }
+
+        return new TodayReport(
+                today.toString(),
+                employees.size(),
+                arrivedCount,
+                absentCount,
+                missingCheckoutCount,
+                lateCount,
+                rows
+        );
+    }
+
     public record DashboardResponse(
             EmployeeProfile employee,
+            String todayDate,
             AttendanceRow today,
             List<AttendanceRow> monthHistory,
             ManagerSummary managerSummary,
-            List<EmployeeOption> employees
+            List<EmployeeOption> employees,
+            TodayReport todayReport
     ) {
     }
 
@@ -269,5 +382,29 @@ public class MiniAppController {
     }
 
     public record AttendanceRow(String date, String arrivalTime, String leaveTime, String workedTime, String lateTime, String status) {
+    }
+
+    public record ActivityRow(String createdAt, Long actorTelegramUserId, String actorName, String details) {
+    }
+
+    public record TodayReport(
+            String date,
+            long activeEmployees,
+            long arrived,
+            long absent,
+            long missingCheckout,
+            long late,
+            List<TodayReportRow> rows
+    ) {
+    }
+
+    public record TodayReportRow(
+            String fullName,
+            String department,
+            String arrivalTime,
+            String leaveTime,
+            String lateTime,
+            String status
+    ) {
     }
 }

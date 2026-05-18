@@ -18,11 +18,18 @@ const els = {
     pendingEarlyLeaves: document.getElementById("pendingEarlyLeaves"),
     todayDate: document.getElementById("todayDate"),
     todayGrid: document.getElementById("todayGrid"),
+    todayReportPanel: document.getElementById("todayReportPanel"),
+    todayReportDate: document.getElementById("todayReportDate"),
+    todayReportSummary: document.getElementById("todayReportSummary"),
+    todayReportBody: document.getElementById("todayReportBody"),
     monthPicker: document.getElementById("monthPicker"),
     historyBody: document.getElementById("historyBody"),
     managerPanel: document.getElementById("managerPanel"),
     employeeSelect: document.getElementById("employeeSelect"),
     employeeHistoryBody: document.getElementById("employeeHistoryBody"),
+    activitiesPanel: document.getElementById("activitiesPanel"),
+    refreshActivities: document.getElementById("refreshActivities"),
+    activitiesBody: document.getElementById("activitiesBody"),
     errorBox: document.getElementById("errorBox"),
 };
 
@@ -51,6 +58,10 @@ els.employeeSelect.addEventListener("change", () => {
     loadEmployeeHistory(state.selectedEmployeeId);
 });
 
+els.refreshActivities.addEventListener("click", () => {
+    loadActivities();
+});
+
 loadDashboard();
 
 async function loadDashboard() {
@@ -58,11 +69,12 @@ async function loadDashboard() {
     try {
         const data = await apiGet("/api/app/me");
         renderProfile(data.employee);
-        renderToday(data.today);
+        renderToday(data.today, data.todayDate);
         renderHistory(els.historyBody, data.monthHistory);
 
         if (data.managerSummary) {
-            renderManager(data.managerSummary, data.employees);
+            renderManager(data.employee, data.managerSummary, data.employees);
+            renderTodayReport(data.todayReport);
         }
     } catch (error) {
         showError(error.message);
@@ -82,6 +94,16 @@ async function loadEmployeeHistory(telegramUserId) {
     try {
         const rows = await apiGet(`/api/app/employees/${telegramUserId}/history?month=${encodeURIComponent(els.monthPicker.value)}`);
         renderHistory(els.employeeHistoryBody, rows);
+    } catch (error) {
+        showError(error.message);
+    }
+}
+
+async function loadActivities() {
+    clearError();
+    try {
+        const rows = await apiGet("/api/app/activities");
+        renderActivities(rows);
     } catch (error) {
         showError(error.message);
     }
@@ -112,8 +134,8 @@ function renderProfile(employee) {
     `;
 }
 
-function renderToday(today) {
-    els.todayDate.textContent = new Date().toISOString().slice(0, 10);
+function renderToday(today, todayDate) {
+    els.todayDate.textContent = todayDate || new Date().toISOString().slice(0, 10);
     if (!today) {
         els.todayGrid.innerHTML = `<p class="empty">Bugun uchun davomat yozuvi yo'q.</p>`;
         return;
@@ -125,6 +147,39 @@ function renderToday(today) {
         ${metric("Ishlangan vaqt", today.workedTime)}
         ${metric("Holat", today.status)}
     `;
+}
+
+function renderTodayReport(report) {
+    if (!report) {
+        els.todayReportPanel.hidden = true;
+        return;
+    }
+
+    els.todayReportPanel.hidden = false;
+    els.todayReportDate.textContent = report.date || "";
+    els.todayReportSummary.innerHTML = `
+        ${metric("Faol xodimlar", report.activeEmployees)}
+        ${metric("Kelganlar", report.arrived)}
+        ${metric("Kelmaganlar", report.absent)}
+        ${metric("Ketishni belgilamaganlar", report.missingCheckout)}
+        ${metric("Kechikkanlar", report.late)}
+    `;
+
+    if (!report.rows || report.rows.length === 0) {
+        els.todayReportBody.innerHTML = `<tr><td colspan="6" class="empty">Bugungi report uchun ma'lumot yo'q.</td></tr>`;
+        return;
+    }
+
+    els.todayReportBody.innerHTML = report.rows.map(row => `
+        <tr>
+            <td>${escapeHtml(row.fullName)}</td>
+            <td>${escapeHtml(row.department)}</td>
+            <td>${escapeHtml(row.arrivalTime || "Belgilanmagan")}</td>
+            <td>${escapeHtml(row.leaveTime || "Belgilanmagan")}</td>
+            <td>${escapeHtml(row.lateTime)}</td>
+            <td><span class="${statusClass(row.status)}">${escapeHtml(row.status)}</span></td>
+        </tr>
+    `).join("");
 }
 
 function renderHistory(target, rows) {
@@ -145,7 +200,7 @@ function renderHistory(target, rows) {
     `).join("");
 }
 
-function renderManager(summary, employees) {
+function renderManager(employee, summary, employees) {
     els.managerMetrics.hidden = false;
     els.managerPanel.hidden = false;
     els.activeEmployees.textContent = summary.activeEmployees;
@@ -165,6 +220,27 @@ function renderManager(summary, employees) {
         els.employeeSelect.value = String(state.selectedEmployeeId);
         loadEmployeeHistory(state.selectedEmployeeId);
     }
+
+    if (employee.role === "ADMIN") {
+        els.activitiesPanel.hidden = false;
+        loadActivities();
+    }
+}
+
+function renderActivities(rows) {
+    if (!rows || rows.length === 0) {
+        els.activitiesBody.innerHTML = `<tr><td colspan="4" class="empty">Activities hozircha yo'q.</td></tr>`;
+        return;
+    }
+
+    els.activitiesBody.innerHTML = rows.map(row => `
+        <tr>
+            <td>${escapeHtml(formatDateTime(row.createdAt))}</td>
+            <td>${escapeHtml(row.actorName)}</td>
+            <td>${escapeHtml(row.actorTelegramUserId)}</td>
+            <td>${escapeHtml(row.details)}</td>
+        </tr>
+    `).join("");
 }
 
 function metric(label, value) {
@@ -190,6 +266,14 @@ function showError(message) {
 function clearError() {
     els.errorBox.hidden = true;
     els.errorBox.textContent = "";
+}
+
+function formatDateTime(value) {
+    if (!value) {
+        return "";
+    }
+
+    return String(value).replace("T", " ").slice(0, 16);
 }
 
 function escapeHtml(value) {

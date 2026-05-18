@@ -52,6 +52,29 @@
         <div class="today-grid" id="todayGrid"></div>
     </section>
 
+    <section class="panel" id="todayReportPanel" hidden>
+        <div class="section-title">
+            <h2>Bugungi report</h2>
+            <span id="todayReportDate"></span>
+        </div>
+        <div class="today-grid" id="todayReportSummary"></div>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                <tr>
+                    <th>Ism familiya</th>
+                    <th>Bo'lim</th>
+                    <th>Kelgan</th>
+                    <th>Ketgan</th>
+                    <th>Kechikish</th>
+                    <th>Holat</th>
+                </tr>
+                </thead>
+                <tbody id="todayReportBody"></tbody>
+            </table>
+        </div>
+    </section>
+
     <section class="panel">
         <div class="section-title">
             <h2>Oylik tarix</h2>
@@ -92,6 +115,26 @@
                 </tr>
                 </thead>
                 <tbody id="employeeHistoryBody"></tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="panel" id="activitiesPanel" hidden>
+        <div class="section-title">
+            <h2>Activities</h2>
+            <button id="refreshActivities" type="button">Yangilash</button>
+        </div>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                <tr>
+                    <th>Vaqt</th>
+                    <th>Xodim</th>
+                    <th>Telegram ID</th>
+                    <th>Amal</th>
+                </tr>
+                </thead>
+                <tbody id="activitiesBody"></tbody>
             </table>
         </div>
     </section>
