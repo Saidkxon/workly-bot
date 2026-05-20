@@ -440,7 +440,7 @@ public class WorklyTelegramBot implements SpringLongPollingBot {
                     Long targetId = Long.parseLong(text.replace("/make_manager_", ""));
                     String result = roleService.makeManager(employee.getTelegramUserId(), targetId);
                     sendPlainMessage(chatId, result, telegramClient);
-                    notifyTargetEmployee(
+                    notifyTargetEmployeeWithMenu(
                             targetId,
                             "Sizga MANAGER roli berildi.",
                             result.endsWith("endi MANAGER."),
@@ -457,7 +457,7 @@ public class WorklyTelegramBot implements SpringLongPollingBot {
                     Long targetId = Long.parseLong(text.replace("/make_employee_", ""));
                     String result = roleService.makeEmployee(employee.getTelegramUserId(), targetId);
                     sendPlainMessage(chatId, result, telegramClient);
-                    notifyTargetEmployee(
+                    notifyTargetEmployeeWithMenu(
                             targetId,
                             "Sizning rolingiz EMPLOYEE ga o'zgartirildi.",
                             result.endsWith("endi EMPLOYEE."),
@@ -474,7 +474,7 @@ public class WorklyTelegramBot implements SpringLongPollingBot {
                     Long targetId = Long.parseLong(text.replace("/make_admin_", ""));
                     String result = roleService.makeAdmin(employee.getTelegramUserId(), targetId);
                     sendPlainMessage(chatId, result, telegramClient);
-                    notifyTargetEmployee(
+                    notifyTargetEmployeeWithMenu(
                             targetId,
                             "Sizga ADMIN roli berildi.",
                             result.endsWith("endi ADMIN."),
@@ -1071,6 +1071,17 @@ public class WorklyTelegramBot implements SpringLongPollingBot {
         Employee target = employeeRepository.findByTelegramUserId(targetTelegramUserId).orElse(null);
         if (target != null && target.getChatId() != null) {
             sendPlainMessage(target.getChatId(), message, telegramClient);
+        }
+    }
+
+    private void notifyTargetEmployeeWithMenu(Long targetTelegramUserId, String message, boolean shouldNotify, TelegramClient telegramClient) {
+        if (!shouldNotify) {
+            return;
+        }
+
+        Employee target = employeeRepository.findByTelegramUserId(targetTelegramUserId).orElse(null);
+        if (target != null && target.isActive() && target.getChatId() != null) {
+            sendMainMenu(target, target.getChatId(), telegramClient, message);
         }
     }
 

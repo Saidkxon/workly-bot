@@ -30,6 +30,10 @@ public class RoleService {
             return "Bu buyruq bilan ADMIN rolini o'zgartirib bo'lmaydi.";
         }
 
+        if (target.getRole() == Role.MANAGER) {
+            return target.getFullName() + " allaqachon MANAGER.";
+        }
+
         target.setRole(Role.MANAGER);
         employeeRepository.save(target);
         auditLogService.logAction(AuditActionType.ROLE_CHANGED, actor, target, "Yangi rol: MANAGER");
@@ -53,6 +57,10 @@ public class RoleService {
             return "Bu buyruq bilan ADMIN rolini pasaytirib bo'lmaydi.";
         }
 
+        if (target.getRole() == Role.EMPLOYEE) {
+            return target.getFullName() + " allaqachon EMPLOYEE.";
+        }
+
         target.setRole(Role.EMPLOYEE);
         employeeRepository.save(target);
         auditLogService.logAction(AuditActionType.ROLE_CHANGED, actor, target, "Yangi rol: EMPLOYEE");
@@ -70,6 +78,10 @@ public class RoleService {
 
         if (actor.getRole() != Role.ADMIN) {
             return "Faqat ADMIN ADMIN rolini bera oladi.";
+        }
+
+        if (target.getRole() == Role.ADMIN) {
+            return target.getFullName() + " allaqachon ADMIN.";
         }
 
         target.setRole(Role.ADMIN);
