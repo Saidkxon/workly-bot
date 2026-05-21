@@ -4,6 +4,12 @@ const state = {
     devUserId: new URLSearchParams(window.location.search).get("userId") || localStorage.getItem("worklyDevUserId") || "",
     employees: [],
     selectedEmployeeId: null,
+    todayReport: null,
+    todayReportFilters: {
+        query: "",
+        status: "all",
+        department: "all",
+    },
 };
 
 const els = {
@@ -22,6 +28,10 @@ const els = {
     todayReportDate: document.getElementById("todayReportDate"),
     todayReportSummary: document.getElementById("todayReportSummary"),
     todayReportBody: document.getElementById("todayReportBody"),
+    todayReportSearch: document.getElementById("todayReportSearch"),
+    todayReportStatusFilter: document.getElementById("todayReportStatusFilter"),
+    todayReportDepartmentFilter: document.getElementById("todayReportDepartmentFilter"),
+    todayReportClearFilters: document.getElementById("todayReportClearFilters"),
     monthPicker: document.getElementById("monthPicker"),
     historyBody: document.getElementById("historyBody"),
     managerPanel: document.getElementById("managerPanel"),
@@ -60,6 +70,33 @@ els.employeeSelect.addEventListener("change", () => {
 
 els.refreshActivities.addEventListener("click", () => {
     loadActivities();
+});
+
+els.todayReportSearch.addEventListener("input", () => {
+    state.todayReportFilters.query = els.todayReportSearch.value.trim().toLowerCase();
+    renderFilteredTodayReportRows();
+});
+
+els.todayReportStatusFilter.addEventListener("change", () => {
+    state.todayReportFilters.status = els.todayReportStatusFilter.value;
+    renderFilteredTodayReportRows();
+});
+
+els.todayReportDepartmentFilter.addEventListener("change", () => {
+    state.todayReportFilters.department = els.todayReportDepartmentFilter.value;
+    renderFilteredTodayReportRows();
+});
+
+els.todayReportClearFilters.addEventListener("click", () => {
+    state.todayReportFilters = {
+        query: "",
+        status: "all",
+        department: "all",
+    };
+    els.todayReportSearch.value = "";
+    els.todayReportStatusFilter.value = "all";
+    els.todayReportDepartmentFilter.value = "all";
+    renderFilteredTodayReportRows();
 });
 
 loadDashboard();
@@ -150,6 +187,8 @@ function renderToday(today, todayDate) {
 }
 
 function renderTodayReport(report) {
+    state.todayReport = report || null;
+
     if (!report) {
         els.todayReportPanel.hidden = true;
         return;
@@ -165,12 +204,50 @@ function renderTodayReport(report) {
         ${metric("Kechikkanlar", report.late)}
     `;
 
-    if (!report.rows || report.rows.length === 0) {
+    renderTodayReportFilters(report.rows || []);
+    renderFilteredTodayReportRows();
+}
+
+function renderTodayReportFilters(rows) {
+    const statuses = uniqueSorted(rows.map(row => row.status).filter(Boolean));
+    const departments = uniqueSorted(rows.map(row => row.department).filter(Boolean));
+
+    renderFilterOptions(els.todayReportStatusFilter, "Barcha holatlar", statuses, state.todayReportFilters.status);
+    renderFilterOptions(els.todayReportDepartmentFilter, "Barcha bo'limlar", departments, state.todayReportFilters.department);
+}
+
+function renderFilterOptions(target, allLabel, values, selectedValue) {
+    const options = [
+        `<option value="all">${escapeHtml(allLabel)}</option>`,
+        ...values.map(value => `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`),
+    ];
+
+    target.innerHTML = options.join("");
+    target.value = values.includes(selectedValue) ? selectedValue : "all";
+
+    if (target.value !== selectedValue) {
+        if (target === els.todayReportStatusFilter) {
+            state.todayReportFilters.status = target.value;
+        } else if (target === els.todayReportDepartmentFilter) {
+            state.todayReportFilters.department = target.value;
+        }
+    }
+}
+
+function renderFilteredTodayReportRows() {
+    const rows = state.todayReport?.rows || [];
+    if (rows.length === 0) {
         els.todayReportBody.innerHTML = `<tr><td colspan="6" class="empty">Bugungi report uchun ma'lumot yo'q.</td></tr>`;
         return;
     }
 
-    els.todayReportBody.innerHTML = report.rows.map(row => `
+    const filteredRows = rows.filter(matchesTodayReportFilters);
+    if (filteredRows.length === 0) {
+        els.todayReportBody.innerHTML = `<tr><td colspan="6" class="empty">Tanlangan filtr bo'yicha ma'lumot topilmadi.</td></tr>`;
+        return;
+    }
+
+    els.todayReportBody.innerHTML = filteredRows.map(row => `
         <tr>
             <td>${escapeHtml(row.fullName)}</td>
             <td>${escapeHtml(row.department)}</td>
@@ -180,6 +257,23 @@ function renderTodayReport(report) {
             <td><span class="${statusClass(row.status)}">${escapeHtml(row.status)}</span></td>
         </tr>
     `).join("");
+}
+
+function matchesTodayReportFilters(row) {
+    const query = state.todayReportFilters.query;
+    const status = state.todayReportFilters.status;
+    const department = state.todayReportFilters.department;
+
+    const searchableText = `${row.fullName || ""} ${row.department || ""}`.toLowerCase();
+    const matchesQuery = !query || searchableText.includes(query);
+    const matchesStatus = status === "all" || row.status === status;
+    const matchesDepartment = department === "all" || row.department === department;
+
+    return matchesQuery && matchesStatus && matchesDepartment;
+}
+
+function uniqueSorted(values) {
+    return [...new Set(values)].sort((first, second) => first.localeCompare(second));
 }
 
 function renderHistory(target, rows) {

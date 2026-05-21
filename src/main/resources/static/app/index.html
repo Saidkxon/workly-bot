@@ -58,6 +58,16 @@
             <span id="todayReportDate"></span>
         </div>
         <div class="today-grid" id="todayReportSummary"></div>
+        <div class="filter-bar" aria-label="Bugungi report filtrlari">
+            <input id="todayReportSearch" type="search" placeholder="Ism yoki bo'lim bo'yicha qidirish">
+            <select id="todayReportStatusFilter">
+                <option value="all">Barcha holatlar</option>
+            </select>
+            <select id="todayReportDepartmentFilter">
+                <option value="all">Barcha bo'limlar</option>
+            </select>
+            <button id="todayReportClearFilters" type="button" class="secondary-button">Tozalash</button>
+        </div>
         <div class="table-wrap">
             <table>
                 <thead>
