@@ -438,12 +438,12 @@ public class WorklyTelegramBot implements SpringLongPollingBot {
             if (text.startsWith("/make_manager_")) {
                 try {
                     Long targetId = Long.parseLong(text.replace("/make_manager_", ""));
-                    String result = roleService.makeManager(employee.getTelegramUserId(), targetId);
-                    sendPlainMessage(chatId, result, telegramClient);
+                    RoleChangeResult result = roleService.makeManager(employee.getTelegramUserId(), targetId);
+                    sendPlainMessage(chatId, result.message(), telegramClient);
                     notifyTargetEmployeeWithMenu(
-                            targetId,
+                            result.targetTelegramUserId(),
                             "Sizga MANAGER roli berildi.",
-                            result.endsWith("endi MANAGER."),
+                            result.changed(),
                             telegramClient
                     );
                 } catch (Exception e) {
@@ -455,12 +455,12 @@ public class WorklyTelegramBot implements SpringLongPollingBot {
             if (text.startsWith("/make_employee_")) {
                 try {
                     Long targetId = Long.parseLong(text.replace("/make_employee_", ""));
-                    String result = roleService.makeEmployee(employee.getTelegramUserId(), targetId);
-                    sendPlainMessage(chatId, result, telegramClient);
+                    RoleChangeResult result = roleService.makeEmployee(employee.getTelegramUserId(), targetId);
+                    sendPlainMessage(chatId, result.message(), telegramClient);
                     notifyTargetEmployeeWithMenu(
-                            targetId,
+                            result.targetTelegramUserId(),
                             "Sizning rolingiz EMPLOYEE ga o'zgartirildi.",
-                            result.endsWith("endi EMPLOYEE."),
+                            result.changed(),
                             telegramClient
                     );
                 } catch (Exception e) {
@@ -472,12 +472,12 @@ public class WorklyTelegramBot implements SpringLongPollingBot {
             if (text.startsWith("/make_admin_")) {
                 try {
                     Long targetId = Long.parseLong(text.replace("/make_admin_", ""));
-                    String result = roleService.makeAdmin(employee.getTelegramUserId(), targetId);
-                    sendPlainMessage(chatId, result, telegramClient);
+                    RoleChangeResult result = roleService.makeAdmin(employee.getTelegramUserId(), targetId);
+                    sendPlainMessage(chatId, result.message(), telegramClient);
                     notifyTargetEmployeeWithMenu(
-                            targetId,
+                            result.targetTelegramUserId(),
                             "Sizga ADMIN roli berildi.",
-                            result.endsWith("endi ADMIN."),
+                            result.changed(),
                             telegramClient
                     );
                 } catch (Exception e) {

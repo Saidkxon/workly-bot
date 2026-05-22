@@ -6,6 +6,7 @@ import com.advancedprogramming.worklybot.entity.enums.Role;
 import com.advancedprogramming.worklybot.repository.EmployeeRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -14,80 +15,91 @@ public class RoleService {
     private final EmployeeRepository employeeRepository;
     private final AuditLogService auditLogService;
 
-    public String makeManager(Long actorTelegramUserId, Long targetTelegramUserId) {
+    @Transactional
+    public RoleChangeResult makeManager(Long actorTelegramUserId, Long targetTelegramUserId) {
         Employee actor = employeeRepository.findByTelegramUserId(actorTelegramUserId).orElse(null);
         Employee target = employeeRepository.findByTelegramUserId(targetTelegramUserId).orElse(null);
 
         if (actor == null || target == null) {
-            return "Foydalanuvchi topilmadi.";
+            return unchanged("Foydalanuvchi topilmadi.", targetTelegramUserId);
         }
 
         if (actor.getRole() != Role.ADMIN) {
-            return "Faqat ADMIN MANAGER rolini bera oladi.";
+            return unchanged("Faqat ADMIN MANAGER rolini bera oladi.", targetTelegramUserId);
         }
 
         if (target.getRole() == Role.ADMIN) {
-            return "Bu buyruq bilan ADMIN rolini o'zgartirib bo'lmaydi.";
+            return unchanged("Bu buyruq bilan ADMIN rolini o'zgartirib bo'lmaydi.", targetTelegramUserId);
         }
 
         if (target.getRole() == Role.MANAGER) {
-            return target.getFullName() + " allaqachon MANAGER.";
+            return unchanged(target.getFullName() + " allaqachon MANAGER.", targetTelegramUserId);
         }
 
         target.setRole(Role.MANAGER);
-        employeeRepository.save(target);
+        employeeRepository.saveAndFlush(target);
         auditLogService.logAction(AuditActionType.ROLE_CHANGED, actor, target, "Yangi rol: MANAGER");
 
-        return target.getFullName() + " endi MANAGER.";
+        return changed(target.getFullName() + " endi MANAGER.", targetTelegramUserId);
     }
 
-    public String makeEmployee(Long actorTelegramUserId, Long targetTelegramUserId) {
+    @Transactional
+    public RoleChangeResult makeEmployee(Long actorTelegramUserId, Long targetTelegramUserId) {
         Employee actor = employeeRepository.findByTelegramUserId(actorTelegramUserId).orElse(null);
         Employee target = employeeRepository.findByTelegramUserId(targetTelegramUserId).orElse(null);
 
         if (actor == null || target == null) {
-            return "Foydalanuvchi topilmadi.";
+            return unchanged("Foydalanuvchi topilmadi.", targetTelegramUserId);
         }
 
         if (actor.getRole() != Role.ADMIN) {
-            return "Faqat ADMIN EMPLOYEE rolini bera oladi.";
+            return unchanged("Faqat ADMIN EMPLOYEE rolini bera oladi.", targetTelegramUserId);
         }
 
         if (target.getRole() == Role.ADMIN) {
-            return "Bu buyruq bilan ADMIN rolini pasaytirib bo'lmaydi.";
+            return unchanged("Bu buyruq bilan ADMIN rolini pasaytirib bo'lmaydi.", targetTelegramUserId);
         }
 
         if (target.getRole() == Role.EMPLOYEE) {
-            return target.getFullName() + " allaqachon EMPLOYEE.";
+            return unchanged(target.getFullName() + " allaqachon EMPLOYEE.", targetTelegramUserId);
         }
 
         target.setRole(Role.EMPLOYEE);
-        employeeRepository.save(target);
+        employeeRepository.saveAndFlush(target);
         auditLogService.logAction(AuditActionType.ROLE_CHANGED, actor, target, "Yangi rol: EMPLOYEE");
 
-        return target.getFullName() + " endi EMPLOYEE.";
+        return changed(target.getFullName() + " endi EMPLOYEE.", targetTelegramUserId);
     }
 
-    public String makeAdmin(Long actorTelegramUserId, Long targetTelegramUserId) {
+    @Transactional
+    public RoleChangeResult makeAdmin(Long actorTelegramUserId, Long targetTelegramUserId) {
         Employee actor = employeeRepository.findByTelegramUserId(actorTelegramUserId).orElse(null);
         Employee target = employeeRepository.findByTelegramUserId(targetTelegramUserId).orElse(null);
 
         if (actor == null || target == null) {
-            return "Foydalanuvchi topilmadi.";
+            return unchanged("Foydalanuvchi topilmadi.", targetTelegramUserId);
         }
 
         if (actor.getRole() != Role.ADMIN) {
-            return "Faqat ADMIN ADMIN rolini bera oladi.";
+            return unchanged("Faqat ADMIN ADMIN rolini bera oladi.", targetTelegramUserId);
         }
 
         if (target.getRole() == Role.ADMIN) {
-            return target.getFullName() + " allaqachon ADMIN.";
+            return unchanged(target.getFullName() + " allaqachon ADMIN.", targetTelegramUserId);
         }
 
         target.setRole(Role.ADMIN);
-        employeeRepository.save(target);
+        employeeRepository.saveAndFlush(target);
         auditLogService.logAction(AuditActionType.ROLE_CHANGED, actor, target, "Yangi rol: ADMIN");
 
-        return target.getFullName() + " endi ADMIN.";
+        return changed(target.getFullName() + " endi ADMIN.", targetTelegramUserId);
+    }
+
+    private RoleChangeResult changed(String message, Long targetTelegramUserId) {
+        return new RoleChangeResult(message, targetTelegramUserId, true);
+    }
+
+    private RoleChangeResult unchanged(String message, Long targetTelegramUserId) {
+        return new RoleChangeResult(message, targetTelegramUserId, false);
     }
 }
