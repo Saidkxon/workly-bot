@@ -45,6 +45,7 @@ const els = {
 
 telegram?.ready();
 telegram?.expand();
+document.body.classList.add("page-ready");
 
 const currentMonth = new Date().toISOString().slice(0, 7);
 els.monthPicker.value = currentMonth;
@@ -103,6 +104,7 @@ loadDashboard();
 
 async function loadDashboard() {
     clearError();
+    setLoading(true);
     try {
         const data = await apiGet("/api/app/me");
         renderProfile(data.employee);
@@ -118,6 +120,8 @@ async function loadDashboard() {
         if (!state.initData) {
             els.devAuth.hidden = false;
         }
+    } finally {
+        setLoading(false);
     }
 }
 
@@ -129,20 +133,26 @@ async function loadEmployeeHistory(telegramUserId) {
     }
 
     try {
+        setLoading(true);
         const rows = await apiGet(`/api/app/employees/${telegramUserId}/history?month=${encodeURIComponent(els.monthPicker.value)}`);
         renderHistory(els.employeeHistoryBody, rows);
     } catch (error) {
         showError(error.message);
+    } finally {
+        setLoading(false);
     }
 }
 
 async function loadActivities() {
     clearError();
     try {
+        setLoading(true);
         const rows = await apiGet("/api/app/activities");
         renderActivities(rows);
     } catch (error) {
         showError(error.message);
+    } finally {
+        setLoading(false);
     }
 }
 
@@ -360,6 +370,12 @@ function showError(message) {
 function clearError() {
     els.errorBox.hidden = true;
     els.errorBox.textContent = "";
+}
+
+function setLoading(isLoading) {
+    document.body.classList.toggle("loading", isLoading);
+    els.devLogin.disabled = isLoading;
+    els.refreshActivities.disabled = isLoading;
 }
 
 function formatDateTime(value) {
