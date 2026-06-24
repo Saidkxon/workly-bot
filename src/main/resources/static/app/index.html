@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="uz">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Workly</title>
+    <meta name="theme-color" content="#0c111e">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&display=swap">
+    <link rel="stylesheet" href="/app/styles.css">
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+</head>
+<body class="loading">
+<div class="app">
+
+    <header class="appbar">
+        <div class="brand">
+            <span class="brand-mark" aria-hidden="true"></span>
+            <span class="brand-name">Workly</span>
+        </div>
+        <div class="profile" id="profile">
+            <div class="profile-avatar" id="profileAvatar">·</div>
+            <div class="profile-meta">
+                <strong id="profileName">Yuklanmoqda…</strong>
+                <span id="profileSub"></span>
+            </div>
+        </div>
+    </header>
+
+    <section class="dev-auth card" id="devAuth" hidden>
+        <label for="devUserId">Telegram user ID bilan kirish</label>
+        <div class="dev-auth-row">
+            <input id="devUserId" inputmode="numeric" placeholder="Masalan: 123456789">
+            <button id="devLogin" class="btn btn-primary" type="button">Kirish</button>
+        </div>
+        <p class="hint">Bu maydon faqat brauzerda sinov uchun ko'rinadi. Telegram ichida avtomatik kirasiz.</p>
+    </section>
+
+    <nav class="tabs" id="tabs" role="tablist" hidden>
+        <button class="tab is-active" id="tabSelf" role="tab" aria-selected="true" type="button">Mening panelim</button>
+        <button class="tab" id="tabTeam" role="tab" aria-selected="false" type="button" hidden>Jamoa</button>
+    </nav>
+
+    <!-- ============ SELF ============ -->
+    <main class="view is-active" id="viewSelf" role="tabpanel">
+
+        <section class="card today-card">
+            <div class="card-head">
+                <h2>Bugun</h2>
+                <span class="muted" id="todayDate"></span>
+            </div>
+
+            <div class="timeline" id="timeline" aria-hidden="true">
+                <div class="timeline-track">
+                    <div class="timeline-fill" id="timelineFill"></div>
+                    <div class="timeline-marker now" id="timelineNow" hidden><i></i><span>Hozir</span></div>
+                    <div class="timeline-marker in" id="timelineIn" hidden><i></i><span id="timelineInLabel"></span></div>
+                    <div class="timeline-marker out" id="timelineOut" hidden><i></i><span id="timelineOutLabel"></span></div>
+                </div>
+                <div class="timeline-scale"><span>06:00</span><span>12:00</span><span>18:00</span><span>23:00</span></div>
+            </div>
+
+            <div class="stat-row" id="todayStats"></div>
+        </section>
+
+        <section class="card payslip" id="payslip">
+            <div class="card-head">
+                <h2>Maoshim</h2>
+                <span class="muted" id="payslipMonth"></span>
+            </div>
+            <div id="payslipBody"></div>
+        </section>
+
+        <section class="card">
+            <div class="card-head">
+                <h2>Mening oyim</h2>
+                <input id="selfMonth" class="month-input" type="month">
+            </div>
+            <div class="table-wrap">
+                <table class="data-table">
+                    <thead>
+                    <tr><th>Sana</th><th>Kelgan</th><th>Ketgan</th><th>Ishlangan</th><th>Kechikish</th><th>Jarima</th><th>Holat</th></tr>
+                    </thead>
+                    <tbody id="selfHistoryBody"></tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <!-- ============ TEAM ============ -->
+    <main class="view" id="viewTeam" role="tabpanel" hidden>
+
+        <section class="metrics" id="metrics"></section>
+
+        <section class="card">
+            <div class="card-head">
+                <h2>Bugungi report</h2>
+                <span class="muted" id="reportDate"></span>
+            </div>
+
+            <div class="filter-cards" id="filterCards" role="group" aria-label="Holat bo'yicha filtr">
+                <button class="filter-card" data-filter="arrived" type="button">
+                    <span class="fc-label">Kelganlar</span><strong class="fc-value" id="fcArrived">0</strong>
+                </button>
+                <button class="filter-card" data-filter="absent" type="button">
+                    <span class="fc-label">Kelmaganlar</span><strong class="fc-value" id="fcAbsent">0</strong>
+                </button>
+                <button class="filter-card" data-filter="late" type="button">
+                    <span class="fc-label">Kechikkanlar</span><strong class="fc-value" id="fcLate">0</strong>
+                </button>
+                <button class="filter-card" data-filter="missing" type="button">
+                    <span class="fc-label">Ketishni belgilamaganlar</span><strong class="fc-value" id="fcMissing">0</strong>
+                </button>
+            </div>
+
+            <div class="filter-bar">
+                <input id="reportSearch" type="search" placeholder="Ism yoki bo'lim bo'yicha qidirish">
+                <select id="reportDept"><option value="all">Barcha bo'limlar</option></select>
+                <button id="reportClear" class="btn btn-ghost" type="button">Tozalash</button>
+            </div>
+
+            <div class="table-wrap">
+                <table class="data-table">
+                    <thead>
+                    <tr><th>Ism familiya</th><th>Bo'lim</th><th>Kelgan</th><th>Ketgan</th><th>Kechikish</th><th>Holat</th></tr>
+                    </thead>
+                    <tbody id="reportBody"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="card">
+            <div class="card-head">
+                <h2>Xodim tarixi</h2>
+                <input id="empMonth" class="month-input" type="month">
+            </div>
+            <select id="empSelect" class="employee-select"></select>
+            <div class="table-wrap">
+                <table class="data-table">
+                    <thead>
+                    <tr><th>Sana</th><th>Kelgan</th><th>Ketgan</th><th>Ishlangan</th><th>Kechikish</th><th>Holat</th></tr>
+                    </thead>
+                    <tbody id="empHistoryBody"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="card" id="activitiesCard" hidden>
+            <div class="card-head">
+                <h2>Faoliyat</h2>
+                <button id="refreshActivities" class="btn btn-ghost" type="button">Yangilash</button>
+            </div>
+            <div class="table-wrap">
+                <table class="data-table">
+                    <thead>
+                    <tr><th>Vaqt</th><th>Xodim</th><th>Telegram ID</th><th>Amal</th></tr>
+                    </thead>
+                    <tbody id="activitiesBody"></tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <div class="toast" id="toast" hidden role="alert"></div>
+</div>
+<script src="/app/app.js"></script>
+</body>
+</html>
