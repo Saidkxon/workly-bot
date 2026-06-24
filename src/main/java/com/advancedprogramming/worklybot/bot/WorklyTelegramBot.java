@@ -5,6 +5,7 @@ import com.advancedprogramming.worklybot.bot.state.UserState;
 import com.advancedprogramming.worklybot.config.BotProperties;
 import com.advancedprogramming.worklybot.entity.Employee;
 import com.advancedprogramming.worklybot.entity.PendingRegistration;
+import com.advancedprogramming.worklybot.entity.enums.AuditActionType;
 import com.advancedprogramming.worklybot.entity.enums.Department;
 import com.advancedprogramming.worklybot.entity.enums.Role;
 import com.advancedprogramming.worklybot.entity.enums.Shift;
@@ -62,6 +63,7 @@ public class WorklyTelegramBot implements SpringLongPollingBot {
     private final SalaryService salaryService;
     private final ExcelReportService excelReportService;
     private final FeedbackService feedbackService;
+    private final ProfileChangeService profileChangeService;
 
     private final Map<Long, UserSession> sessions = new ConcurrentHashMap<>();
 
@@ -235,6 +237,49 @@ public class WorklyTelegramBot implements SpringLongPollingBot {
             return;
         }
 
+        if (session.getState() == UserState.WAITING_PROFILE_DEPARTMENT_SELECTION) {
+            if (employee == null) {
+                sendPlainMessage(chatId, BotMessages.NOT_REGISTERED, telegramClient);
+                return;
+            }
+
+            Department department = Department.fromDisplayName(text);
+            if (department == null) {
+                sendDepartmentSelection(chatId, telegramClient);
+                sendPlainMessage(chatId, BotMessages.INVALID_DEPARTMENT_SELECTION, telegramClient);
+                return;
+            }
+
+            session.setRequestedDepartment(department.getDisplayName());
+            session.setState(UserState.WAITING_PROFILE_SHIFT_SELECTION);
+            sendShiftSelection(chatId, telegramClient);
+            return;
+        }
+
+        if (session.getState() == UserState.WAITING_PROFILE_SHIFT_SELECTION) {
+            if (employee == null) {
+                sendPlainMessage(chatId, BotMessages.NOT_REGISTERED, telegramClient);
+                return;
+            }
+
+            Shift shift = Shift.fromDisplayName(text);
+            if (shift == null) {
+                sendShiftSelection(chatId, telegramClient);
+                sendPlainMessage(chatId, BotMessages.INVALID_SHIFT_SELECTION, telegramClient);
+                return;
+            }
+
+            String message = profileChangeService.createRequest(employee, session.getRequestedDepartment(), shift);
+            if (message.startsWith("Bo'lim/smena o'zgartirish so'rovi")) {
+                notifyManagersAboutProfileChangeRequest(employee, telegramClient);
+                resetSession(session);
+                sendMainMenu(employee, chatId, telegramClient, message);
+            } else {
+                sendPlainMessage(chatId, message, telegramClient);
+            }
+            return;
+        }
+
         if (session.getState() == UserState.WAITING_EARLY_LEAVE_REASON) {
             if (employee == null) {
                 sendPlainMessage(chatId, BotMessages.NOT_REGISTERED, telegramClient);
@@ -254,6 +299,25 @@ public class WorklyTelegramBot implements SpringLongPollingBot {
             } else {
                 sendPlainMessage(chatId, message, telegramClient);
             }
+            return;
+        }
+
+        if (session.getState() == UserState.WAITING_ADMIN_BROADCAST_MESSAGE) {
+            if (employee == null || employee.getRole() != Role.ADMIN) {
+                resetSession(session);
+                sendPlainMessage(chatId, "Bu amal faqat adminlar uchun.", telegramClient);
+                return;
+            }
+
+            if (text.isBlank() || text.length() < 3) {
+                sendPlainMessage(chatId, "Xabar juda qisqa. Foydalanuvchilarga yuboriladigan xabarni yozing yoki /cancel yuboring.", telegramClient);
+                return;
+            }
+
+            int sent = notifyAllActiveEmployees("Admin xabari:\n" + text, telegramClient);
+            auditLogService.logAction(AuditActionType.ADMIN_BROADCAST_SENT, employee, null, "Yuborilgan xabarlar soni: " + sent);
+            resetSession(session);
+            sendMainMenu(employee, chatId, telegramClient, "Xabar " + sent + " ta faol foydalanuvchiga yuborildi.");
             return;
         }
 
@@ -423,6 +487,11 @@ public class WorklyTelegramBot implements SpringLongPollingBot {
                 return;
             }
 
+            if (text.equals(BotMessages.CMD_PENDING_PROFILE_CHANGES)) {
+                sendPlainMessage(chatId, profileChangeService.getPendingRequestsText(), telegramClient);
+                return;
+            }
+
             if (text.equals("/early_dismiss_all")) {
                 int count = earlyLeaveService.grantEarlyDismissalForAll(employee.getTelegramUserId());
                 if (count < 0) {
@@ -449,23 +518,33 @@ public class WorklyTelegramBot implements SpringLongPollingBot {
             }
 
             if (text.startsWith("/broadcast")) {
+                if (employee.getRole() != Role.ADMIN) {
+                    sendPlainMessage(chatId, "Bu amal faqat adminlar uchun.", telegramClient);
+                    return;
+                }
                 String body = text.length() > "/broadcast".length() ? text.substring("/broadcast".length()).trim() : "";
                 if (body.isBlank()) {
                     sendPlainMessage(chatId, "Xabar matnini yozing. Masalan: /broadcast Ertaga yig'ilish bor.", telegramClient);
                 } else {
-                    notifyAllActiveEmployees("E'lon:\n" + body, telegramClient);
-                    sendPlainMessage(chatId, "Xabar barcha xodimlarga yuborildi.", telegramClient);
+                    int sent = notifyAllActiveEmployees("Admin xabari:\n" + body, telegramClient);
+                    auditLogService.logAction(AuditActionType.ADMIN_BROADCAST_SENT, employee, null, "Yuborilgan xabarlar soni: " + sent);
+                    sendPlainMessage(chatId, "Xabar " + sent + " ta faol foydalanuvchiga yuborildi.", telegramClient);
                 }
                 return;
             }
 
             if (text.startsWith("/survey")) {
+                if (employee.getRole() != Role.ADMIN) {
+                    sendPlainMessage(chatId, "Bu amal faqat adminlar uchun.", telegramClient);
+                    return;
+                }
                 String question = text.length() > "/survey".length() ? text.substring("/survey".length()).trim() : "";
                 if (question.isBlank()) {
                     sendPlainMessage(chatId, "Savolni yozing. Masalan: /survey Bot ishidan qoniqasizmi?", telegramClient);
                 } else {
-                    notifyAllActiveEmployees("So'rovnoma:\n" + question + "\n\nJavob berish uchun: /feedback javobingiz", telegramClient);
-                    sendPlainMessage(chatId, "So'rovnoma yuborildi.", telegramClient);
+                    int sent = notifyAllActiveEmployees("So'rovnoma:\n" + question + "\n\nJavob berish uchun: /feedback javobingiz", telegramClient);
+                    auditLogService.logAction(AuditActionType.ADMIN_BROADCAST_SENT, employee, null, "So'rovnoma yuborildi: " + sent);
+                    sendPlainMessage(chatId, "So'rovnoma " + sent + " ta faol foydalanuvchiga yuborildi.", telegramClient);
                 }
                 return;
             }
@@ -614,6 +693,36 @@ public class WorklyTelegramBot implements SpringLongPollingBot {
                 return;
             }
 
+            if (text.startsWith("/approve_profile_")) {
+                try {
+                    Long requestId = Long.parseLong(text.replace("/approve_profile_", ""));
+                    CorrectionActionResult result = profileChangeService.approve(requestId, employee.getTelegramUserId());
+                    sendPlainMessage(chatId, result.getManagerMessage(), telegramClient);
+
+                    if (result.getEmployeeChatId() != null && result.getEmployeeMessage() != null) {
+                        sendPlainMessage(result.getEmployeeChatId(), result.getEmployeeMessage(), telegramClient);
+                    }
+                } catch (Exception e) {
+                    sendPlainMessage(chatId, "Profil so'rovini tasdiqlash buyrug'i noto'g'ri.", telegramClient);
+                }
+                return;
+            }
+
+            if (text.startsWith("/reject_profile_")) {
+                try {
+                    Long requestId = Long.parseLong(text.replace("/reject_profile_", ""));
+                    CorrectionActionResult result = profileChangeService.reject(requestId, employee.getTelegramUserId());
+                    sendPlainMessage(chatId, result.getManagerMessage(), telegramClient);
+
+                    if (result.getEmployeeChatId() != null && result.getEmployeeMessage() != null) {
+                        sendPlainMessage(result.getEmployeeChatId(), result.getEmployeeMessage(), telegramClient);
+                    }
+                } catch (Exception e) {
+                    sendPlainMessage(chatId, "Profil so'rovini rad etish buyrug'i noto'g'ri.", telegramClient);
+                }
+                return;
+            }
+
             if (text.startsWith("/approve_")) {
                 try {
                     Long requestId = Long.parseLong(text.replace("/approve_", ""));
@@ -704,6 +813,20 @@ public class WorklyTelegramBot implements SpringLongPollingBot {
             case BotMessages.BUTTON_EARLY_LEAVE -> {
                 session.setState(UserState.WAITING_EARLY_LEAVE_REASON);
                 sendPlainMessage(chatId, BotMessages.ENTER_EARLY_LEAVE_REASON, telegramClient);
+                return;
+            }
+            case BotMessages.BUTTON_CHANGE_PROFILE -> {
+                session.setState(UserState.WAITING_PROFILE_DEPARTMENT_SELECTION);
+                sendDepartmentSelection(chatId, telegramClient);
+                return;
+            }
+            case BotMessages.BUTTON_ADMIN_BROADCAST -> {
+                if (employee.getRole() != Role.ADMIN) {
+                    sendMainMenu(employee, chatId, telegramClient, "Bu amal faqat adminlar uchun.");
+                    return;
+                }
+                session.setState(UserState.WAITING_ADMIN_BROADCAST_MESSAGE);
+                sendPlainMessage(chatId, "Sizning xabaringiz foydalanuvchilar uchun", telegramClient);
                 return;
             }
             default -> sendMainMenu(employee, chatId, telegramClient, BotMessages.CHOOSE_ACTION);
@@ -997,12 +1120,15 @@ public class WorklyTelegramBot implements SpringLongPollingBot {
         }
     }
 
-    private void notifyAllActiveEmployees(String text, TelegramClient telegramClient) {
+    private int notifyAllActiveEmployees(String text, TelegramClient telegramClient) {
+        int sent = 0;
         for (Employee employee : employeeRepository.findAllByActiveTrue()) {
             if (employee.getChatId() != null) {
                 sendPlainMessage(employee.getChatId(), text, telegramClient);
+                sent++;
             }
         }
+        return sent;
     }
 
     private void resetSession(UserSession session) {
@@ -1012,6 +1138,7 @@ public class WorklyTelegramBot implements SpringLongPollingBot {
         session.setCorrectionType(null);
         session.setEarlyLeaveReason(null);
         session.setHistoryEmployeeTelegramUserId(null);
+        session.setRequestedDepartment(null);
     }
 
     private boolean saveActivity(Employee employee, String activity) {
@@ -1146,6 +1273,9 @@ public class WorklyTelegramBot implements SpringLongPollingBot {
         row3.add(BotMessages.BUTTON_FIX_MISTAKE);
         row3.add(BotMessages.BUTTON_EARLY_LEAVE);
 
+        KeyboardRow rowProfile = new KeyboardRow();
+        rowProfile.add(BotMessages.BUTTON_CHANGE_PROFILE);
+
         KeyboardRow rowApp = new KeyboardRow();
         rowApp.add(BotMessages.BUTTON_OPEN_APP);
 
@@ -1153,42 +1283,37 @@ public class WorklyTelegramBot implements SpringLongPollingBot {
         keyboard.add(row1);
         keyboard.add(row2);
         keyboard.add(row3);
+        keyboard.add(rowProfile);
         keyboard.add(rowApp);
 
         if (employee != null && (employee.getRole() == Role.MANAGER || employee.getRole() == Role.ADMIN)) {
             KeyboardRow row4 = new KeyboardRow();
-            row4.add(BotMessages.CMD_TODAY_REPORT);
-            row4.add(BotMessages.CMD_MONTH_REPORT);
+            row4.add(BotMessages.CMD_MONTH_EXCEL);
+            row4.add(BotMessages.CMD_EMPLOYEE_HISTORY);
 
             KeyboardRow row5 = new KeyboardRow();
-            row5.add(BotMessages.CMD_MONTH_EXCEL);
-            row5.add(BotMessages.CMD_EMPLOYEE_HISTORY);
+            row5.add(BotMessages.CMD_PENDING_CORRECTIONS);
+            row5.add(BotMessages.CMD_PENDING_PROFILE_CHANGES);
 
             KeyboardRow row6 = new KeyboardRow();
-            row6.add(BotMessages.CMD_PENDING_CORRECTIONS);
+            row6.add(BotMessages.CMD_PENDING_EARLY_LEAVES);
+            row6.add(BotMessages.CMD_PENDING_REGISTRATIONS);
 
             KeyboardRow row7 = new KeyboardRow();
             row7.add(BotMessages.CMD_EMPLOYEES);
             row7.add(BotMessages.CMD_SALARIES);
 
             KeyboardRow row8 = new KeyboardRow();
-            row8.add(BotMessages.CMD_PENDING_EARLY_LEAVES);
-            row8.add(BotMessages.CMD_PENDING_REGISTRATIONS);
-
-            KeyboardRow row9 = new KeyboardRow();
             if (employee.getRole() == Role.ADMIN) {
-                row9.add(BotMessages.CMD_ACTIVITIES);
-                row9.add(BotMessages.CMD_AUDIT_LOG);
-                row9.add(BotMessages.CMD_FEEDBACKS);
+                row8.add(BotMessages.BUTTON_ADMIN_BROADCAST);
             }
 
             keyboard.add(row4);
             keyboard.add(row5);
             keyboard.add(row6);
             keyboard.add(row7);
-            keyboard.add(row8);
-            if (!row9.isEmpty()) {
-                keyboard.add(row9);
+            if (!row8.isEmpty()) {
+                keyboard.add(row8);
             }
         }
 
@@ -1254,6 +1379,22 @@ public class WorklyTelegramBot implements SpringLongPollingBot {
                 + "Sabab: " + request.getReason() + "\n"
                 + "Tasdiqlash: /approve_early_" + request.getId() + "\n"
                 + "Rad etish: /reject_early_" + request.getId();
+        notifyManagers(message, telegramClient);
+    }
+
+    private void notifyManagersAboutProfileChangeRequest(Employee employee, TelegramClient telegramClient) {
+        var request = profileChangeService.findLatestPendingRequest(employee);
+        if (request == null) {
+            return;
+        }
+
+        String message = "Yangi profil o'zgartirish so'rovi keldi.\n"
+                + "Xodim: " + employee.getFullName() + "\n"
+                + "Bo'lim: " + request.getCurrentDepartment() + " -> " + request.getRequestedDepartment() + "\n"
+                + "Smena: " + Shift.orDefault(request.getCurrentShift()).getDisplayName()
+                + " -> " + request.getRequestedShift().getDisplayName() + "\n"
+                + "Tasdiqlash: /approve_profile_" + request.getId() + "\n"
+                + "Rad etish: /reject_profile_" + request.getId();
         notifyManagers(message, telegramClient);
     }
 
@@ -1331,6 +1472,8 @@ public class WorklyTelegramBot implements SpringLongPollingBot {
                 || text.equals(BotMessages.BUTTON_OPEN_APP)
                 || text.equals(BotMessages.BUTTON_FIX_MISTAKE)
                 || text.equals(BotMessages.BUTTON_EARLY_LEAVE)
+                || text.equals(BotMessages.BUTTON_CHANGE_PROFILE)
+                || text.equals(BotMessages.BUTTON_ADMIN_BROADCAST)
                 || text.equals(BotMessages.CMD_TODAY_REPORT)
                 || text.equals(BotMessages.CMD_LATE_EMPLOYEES_LIST)
                 || text.equals(BotMessages.CMD_MONTH_REPORT)
@@ -1349,10 +1492,13 @@ public class WorklyTelegramBot implements SpringLongPollingBot {
                 || text.startsWith("/make_manager_")
                 || text.startsWith("/make_employee_")
                 || text.startsWith("/make_admin_")
+                || text.startsWith("/approve_profile_")
+                || text.startsWith("/reject_profile_")
                 || text.startsWith("/approve_")
                 || text.startsWith("/reject_")
                 || text.equals(BotMessages.CMD_SALARIES)
                 || text.equals(BotMessages.CMD_FEEDBACKS)
+                || text.equals(BotMessages.CMD_PENDING_PROFILE_CHANGES)
                 || text.startsWith("/setsalary_")
                 || text.startsWith("/early_dismiss_")
                 || text.startsWith("/broadcast")

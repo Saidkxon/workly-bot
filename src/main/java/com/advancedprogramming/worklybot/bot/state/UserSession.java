@@ -18,4 +18,5 @@ public class UserSession {
     private String correctionType;
     private String earlyLeaveReason;
     private Long historyEmployeeTelegramUserId;
+    private String requestedDepartment;
 }

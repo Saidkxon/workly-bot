@@ -88,5 +88,20 @@ public class DatabaseSchemaInitializer {
                     created_at TIMESTAMP NOT NULL
                 )
                 """);
+
+        jdbcTemplate.execute("""
+                CREATE TABLE IF NOT EXISTS profile_change_requests (
+                    id BIGSERIAL PRIMARY KEY,
+                    employee_id BIGINT NOT NULL REFERENCES employees(id),
+                    current_department VARCHAR(255) NOT NULL,
+                    requested_department VARCHAR(255) NOT NULL,
+                    current_shift VARCHAR(16),
+                    requested_shift VARCHAR(16) NOT NULL,
+                    status VARCHAR(32) NOT NULL,
+                    created_at TIMESTAMP NOT NULL,
+                    reviewed_at TIMESTAMP,
+                    reviewed_by_telegram_user_id BIGINT
+                )
+                """);
     }
 }

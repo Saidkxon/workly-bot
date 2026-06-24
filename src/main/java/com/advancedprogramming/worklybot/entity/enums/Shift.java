@@ -2,13 +2,10 @@ package com.advancedprogramming.worklybot.entity.enums;
 
 import java.time.LocalTime;
 
-/**
- * Work shifts. Lateness, reminders and the early-leave rules are all derived from
- * the shift's start and end time (no more single office-wide work time).
- */
 public enum Shift {
 
     MORNING(LocalTime.of(8, 30), LocalTime.of(18, 0)),
+    LONG_DAY(LocalTime.of(8, 30), LocalTime.of(20, 0)),
     EVENING(LocalTime.of(14, 0), LocalTime.of(21, 0));
 
     private final LocalTime startTime;
@@ -47,7 +44,7 @@ public enum Shift {
         return null;
     }
 
-    /** Null-safe default so legacy rows without a shift behave like the morning shift. */
+    /** Null-safe default, so legacy rows without a shift behave like the morning shift. */
     public static Shift orDefault(Shift shift) {
         return shift == null ? MORNING : shift;
     }

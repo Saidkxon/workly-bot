@@ -146,6 +146,12 @@ public class BotMessages {
     public static final String BUTTON_EARLY_LEAVE =
             "🏃 Erta ketish";
 
+    public static final String BUTTON_CHANGE_PROFILE =
+            "⚙️ Bo'lim/smenani o'zgartirish";
+
+    public static final String BUTTON_ADMIN_BROADCAST =
+            "📣 Xodimlarga xabar";
+
     public static final String CMD_TODAY_REPORT = "/bugungi_report";
     public static final String CMD_LATE_EMPLOYEES_LIST = "/late_employees_list";
     public static final String CMD_MONTH_REPORT = "/oylik_report";
@@ -193,4 +199,5 @@ public class BotMessages {
 
     public static final String CMD_SALARIES = "/maoshlar";
     public static final String CMD_FEEDBACKS = "/fikrlar";
+    public static final String CMD_PENDING_PROFILE_CHANGES = "/profil_so'rovlari";
 }
