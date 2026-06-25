@@ -103,5 +103,29 @@ public class DatabaseSchemaInitializer {
                     reviewed_by_telegram_user_id BIGINT
                 )
                 """);
+
+        // Drop stale Hibernate-generated CHECK constraints on shift columns.
+        // ddl-auto=update never updates these, so adding a new Shift enum value
+        // (e.g. LONG_DAY) would otherwise be rejected by the old IN (...) list.
+        jdbcTemplate.execute("""
+                DO $$
+                DECLARE r RECORD;
+                BEGIN
+                    FOR r IN
+                        SELECT conrelid::regclass AS tbl, conname
+                        FROM pg_constraint
+                        WHERE contype = 'c'
+                          AND conrelid IN (
+                              'employees'::regclass,
+                              'pending_registrations'::regclass,
+                              'profile_change_requests'::regclass)
+                          AND pg_get_constraintdef(oid) ILIKE '%shift%'
+                    LOOP
+                        EXECUTE format('ALTER TABLE %s DROP CONSTRAINT %I', r.tbl, r.conname);
+                    END LOOP;
+                END $$;
+                """);
+
+        log.info("Database schema ensured; stale shift CHECK constraints removed");
     }
 }

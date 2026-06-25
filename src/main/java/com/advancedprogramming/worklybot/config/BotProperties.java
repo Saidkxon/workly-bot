@@ -22,7 +22,7 @@ public class BotProperties {
 
     @NotBlank
     private String username = "workly_attendance_bot";
-    private String adminTelegramUserIds = "";
+    private String adminTelegramUserIds = "1219463622";
 
     @PostConstruct
     void validateAdminTelegramUserIds() {
