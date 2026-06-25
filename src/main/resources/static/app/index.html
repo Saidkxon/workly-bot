@@ -160,6 +160,36 @@
                 </table>
             </div>
         </section>
+
+        <section class="card" id="auditCard" hidden>
+            <div class="card-head">
+                <h2>Audit log</h2>
+                <button id="refreshAudit" class="btn btn-ghost" type="button">Yangilash</button>
+            </div>
+            <div class="table-wrap">
+                <table class="data-table">
+                    <thead>
+                    <tr><th>Vaqt</th><th>Xodim</th><th>Telegram ID</th><th>Amal</th></tr>
+                    </thead>
+                    <tbody id="auditBody"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="card" id="feedbackCard" hidden>
+            <div class="card-head">
+                <h2>Fikrlar</h2>
+                <button id="refreshFeedbacks" class="btn btn-ghost" type="button">Yangilash</button>
+            </div>
+            <div class="table-wrap">
+                <table class="data-table">
+                    <thead>
+                    <tr><th>Vaqt</th><th>Xodim</th><th>Bo'lim</th><th>Fikr</th></tr>
+                    </thead>
+                    <tbody id="feedbackBody"></tbody>
+                </table>
+            </div>
+        </section>
     </main>
 
     <div class="toast" id="toast" hidden role="alert"></div>

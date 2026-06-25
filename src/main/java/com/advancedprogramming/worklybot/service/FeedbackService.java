@@ -39,7 +39,7 @@ public class FeedbackService {
     }
 
     public String recentFeedbackText() {
-        List<FeedbackResponse> rows = feedbackResponseRepository.findTop30ByOrderByCreatedAtDesc();
+        List<FeedbackResponse> rows = recentFeedbacks();
         if (rows.isEmpty()) {
             return "Hozircha fikr-mulohazalar yo'q.";
         }
@@ -53,5 +53,9 @@ public class FeedbackService {
                     .append("----------------------\n");
         }
         return sb.toString();
+    }
+
+    public List<FeedbackResponse> recentFeedbacks() {
+        return feedbackResponseRepository.findTop30ByOrderByCreatedAtDesc();
     }
 }

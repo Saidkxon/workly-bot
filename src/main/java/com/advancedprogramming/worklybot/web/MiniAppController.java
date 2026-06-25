@@ -5,6 +5,7 @@ import com.advancedprogramming.worklybot.config.BotProperties;
 import com.advancedprogramming.worklybot.entity.AuditLog;
 import com.advancedprogramming.worklybot.entity.Attendance;
 import com.advancedprogramming.worklybot.entity.Employee;
+import com.advancedprogramming.worklybot.entity.FeedbackResponse;
 import com.advancedprogramming.worklybot.entity.enums.CorrectionStatus;
 import com.advancedprogramming.worklybot.entity.enums.Role;
 import com.advancedprogramming.worklybot.entity.enums.Shift;
@@ -13,8 +14,10 @@ import com.advancedprogramming.worklybot.repository.CorrectionRequestRepository;
 import com.advancedprogramming.worklybot.repository.EarlyLeaveRequestRepository;
 import com.advancedprogramming.worklybot.repository.EmployeeRepository;
 import com.advancedprogramming.worklybot.repository.PendingRegistrationRepository;
+import com.advancedprogramming.worklybot.repository.ProfileChangeRequestRepository;
 import com.advancedprogramming.worklybot.service.AttendanceService;
 import com.advancedprogramming.worklybot.service.AuditLogService;
+import com.advancedprogramming.worklybot.service.FeedbackService;
 import com.advancedprogramming.worklybot.service.MonthlySalaryBreakdown;
 import com.advancedprogramming.worklybot.service.SalaryDayRow;
 import com.advancedprogramming.worklybot.service.SalaryService;
@@ -55,9 +58,11 @@ public class MiniAppController {
     private final CorrectionRequestRepository correctionRequestRepository;
     private final EarlyLeaveRequestRepository earlyLeaveRequestRepository;
     private final PendingRegistrationRepository pendingRegistrationRepository;
+    private final ProfileChangeRequestRepository profileChangeRequestRepository;
     private final AttendanceService attendanceService;
     private final AuditLogService auditLogService;
     private final SalaryService salaryService;
+    private final FeedbackService feedbackService;
     private final Clock appClock;
 
     @Value("${app.mini-app.dev-auth-enabled:true}")
@@ -92,7 +97,8 @@ public class MiniAppController {
                     employeeRepository.findAllByActiveTrue().size(),
                     pendingRegistrationRepository.findAllByOrderByCreatedAtAsc().size(),
                     correctionRequestRepository.findAllByStatus(CorrectionStatus.PENDING).size(),
-                    earlyLeaveRequestRepository.findAllByStatus(CorrectionStatus.PENDING).size()
+                    earlyLeaveRequestRepository.findAllByStatus(CorrectionStatus.PENDING).size(),
+                    profileChangeRequestRepository.countByStatus(CorrectionStatus.PENDING)
             );
             employees = employeeRepository.findAllByActiveTrueOrderByFullNameAsc()
                     .stream()
@@ -179,6 +185,39 @@ public class MiniAppController {
                 .toList();
 
         return ResponseEntity.ok(rows);
+    }
+
+    @GetMapping("/audit-log")
+    public ResponseEntity<List<ActivityRow>> auditLog(
+            @RequestHeader(value = "X-Telegram-Init-Data", required = false) String initData,
+            @RequestParam(value = "userId", required = false) Long devUserId
+    ) {
+        Employee requester = resolveEmployee(initData, devUserId);
+        if (!isAdmin(requester)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Admin access required.");
+        }
+
+        List<ActivityRow> rows = auditLogService.getRecentAuditLogs()
+                .stream()
+                .map(this::toActivityRow)
+                .toList();
+        return ResponseEntity.ok(rows);
+    }
+
+    @GetMapping("/feedbacks")
+    public ResponseEntity<List<FeedbackRow>> feedbacks(
+            @RequestHeader(value = "X-Telegram-Init-Data", required = false) String initData,
+            @RequestParam(value = "userId", required = false) Long devUserId
+    ) {
+        Employee requester = resolveEmployee(initData, devUserId);
+        if (!isAdmin(requester)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Admin access required.");
+        }
+
+        return ResponseEntity.ok(feedbackService.recentFeedbacks()
+                .stream()
+                .map(this::toFeedbackRow)
+                .toList());
     }
 
     private Employee resolveEmployee(String initData, Long devUserId) {
@@ -341,6 +380,15 @@ public class MiniAppController {
         );
     }
 
+    private FeedbackRow toFeedbackRow(FeedbackResponse feedback) {
+        return new FeedbackRow(
+                feedback.getCreatedAt().toString(),
+                feedback.getFullName(),
+                feedback.getDepartment(),
+                feedback.getMessage()
+        );
+    }
+
     private TodayReport buildTodayReport(LocalDate today, List<EmployeeOption> employees) {
         Map<Long, Attendance> attendanceByEmployeeId = new HashMap<>();
         for (Attendance attendance : attendanceRepository.findAllByWorkDate(today)) {
@@ -455,13 +503,17 @@ public class MiniAppController {
     public record EmployeeOption(Long telegramUserId, String fullName, String department, String role) {
     }
 
-    public record ManagerSummary(int activeEmployees, int pendingRegistrations, int pendingCorrections, int pendingEarlyLeaves) {
+    public record ManagerSummary(int activeEmployees, int pendingRegistrations, int pendingCorrections, int pendingEarlyLeaves,
+                                 long pendingProfileChanges) {
     }
 
     public record AttendanceRow(String date, String arrivalTime, String leaveTime, String workedTime, String lateTime, String status) {
     }
 
     public record ActivityRow(String createdAt, Long actorTelegramUserId, String actorName, String details) {
+    }
+
+    public record FeedbackRow(String createdAt, String fullName, String department, String message) {
     }
 
     public record TodayReport(

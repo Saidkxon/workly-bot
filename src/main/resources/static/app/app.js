@@ -35,6 +35,8 @@ const els = {
     reportSearch: $("reportSearch"), reportDept: $("reportDept"), reportClear: $("reportClear"), reportBody: $("reportBody"),
     empMonth: $("empMonth"), empSelect: $("empSelect"), empHistoryBody: $("empHistoryBody"),
     activitiesCard: $("activitiesCard"), refreshActivities: $("refreshActivities"), activitiesBody: $("activitiesBody"),
+    auditCard: $("auditCard"), refreshAudit: $("refreshAudit"), auditBody: $("auditBody"),
+    feedbackCard: $("feedbackCard"), refreshFeedbacks: $("refreshFeedbacks"), feedbackBody: $("feedbackBody"),
     toast: $("toast"),
 };
 
@@ -59,6 +61,8 @@ els.empSelect.addEventListener("change", () => {
 });
 els.empMonth.addEventListener("change", loadEmployeeHistory);
 els.refreshActivities.addEventListener("click", loadActivities);
+els.refreshAudit.addEventListener("click", loadAuditLog);
+els.refreshFeedbacks.addEventListener("click", loadFeedbacks);
 els.reportSearch.addEventListener("input", () => { state.report.query = els.reportSearch.value.trim().toLowerCase(); renderReportRows(); });
 els.reportDept.addEventListener("change", () => { state.report.dept = els.reportDept.value; renderReportRows(); });
 els.reportClear.addEventListener("click", clearReportFilters);
@@ -88,7 +92,13 @@ async function loadDashboard(month) {
             renderEmployees(data.employees);
             setReport(data.todayReport);
             els.activitiesCard.hidden = data.employee.role !== "ADMIN";
-            if (data.employee.role === "ADMIN") loadActivities();
+            els.auditCard.hidden = data.employee.role !== "ADMIN";
+            els.feedbackCard.hidden = data.employee.role !== "ADMIN";
+            if (data.employee.role === "ADMIN") {
+                loadActivities();
+                loadAuditLog();
+                loadFeedbacks();
+            }
         } else {
             switchTab("self");
         }
@@ -117,6 +127,24 @@ async function loadActivities() {
     try {
         const rows = await apiGet("/api/app/activities", {});
         renderActivities(rows);
+    } catch (error) {
+        showToast(error.message);
+    }
+}
+
+async function loadAuditLog() {
+    try {
+        const rows = await apiGet("/api/app/audit-log", {});
+        renderAuditLog(rows);
+    } catch (error) {
+        showToast(error.message);
+    }
+}
+
+async function loadFeedbacks() {
+    try {
+        const rows = await apiGet("/api/app/feedbacks", {});
+        renderFeedbacks(rows);
     } catch (error) {
         showToast(error.message);
     }
@@ -233,7 +261,8 @@ function renderMetrics(s) {
         metric("Faol xodimlar", s.activeEmployees) +
         metric("Yangi xodimlar", s.pendingRegistrations) +
         metric("Tuzatishlar", s.pendingCorrections) +
-        metric("Erta ketish", s.pendingEarlyLeaves);
+        metric("Erta ketish", s.pendingEarlyLeaves) +
+        metric("Profil so'rovlari", s.pendingProfileChanges);
 }
 
 function renderEmployees(employees) {
@@ -317,6 +346,20 @@ function renderActivities(rows) {
     els.activitiesBody.innerHTML = rows.map((r) => `<tr>
         <td>${esc(fmtDateTime(r.createdAt))}</td><td>${esc(r.actorName)}</td>
         <td>${esc(r.actorTelegramUserId)}</td><td>${esc(r.details)}</td></tr>`).join("");
+}
+
+function renderAuditLog(rows) {
+    if (!rows || !rows.length) return emptyRow(els.auditBody, 4, "Audit log hozircha yo'q.");
+    els.auditBody.innerHTML = rows.map((r) => `<tr>
+        <td>${esc(fmtDateTime(r.createdAt))}</td><td>${esc(r.actorName)}</td>
+        <td>${esc(r.actorTelegramUserId)}</td><td>${esc(r.details)}</td></tr>`).join("");
+}
+
+function renderFeedbacks(rows) {
+    if (!rows || !rows.length) return emptyRow(els.feedbackBody, 4, "Fikrlar hozircha yo'q.");
+    els.feedbackBody.innerHTML = rows.map((r) => `<tr>
+        <td>${esc(fmtDateTime(r.createdAt))}</td><td>${esc(r.fullName)}</td>
+        <td>${esc(r.department || "—")}</td><td>${esc(r.message)}</td></tr>`).join("");
 }
 
 /* ---------------- tabs ---------------- */

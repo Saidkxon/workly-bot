@@ -81,8 +81,12 @@ public class AuditLogService {
         return auditLogRepository.findTop50ByActionTypeOrderByCreatedAtDesc(AuditActionType.USER_ACTIVITY);
     }
 
+    public List<AuditLog> getRecentAuditLogs() {
+        return auditLogRepository.findTop20ByOrderByCreatedAtDesc();
+    }
+
     public String getRecentActivityText() {
-        List<AuditLog> logs = auditLogRepository.findTop20ByOrderByCreatedAtDesc();
+        List<AuditLog> logs = getRecentAuditLogs();
 
         if (logs.isEmpty()) {
             return "Audit log hozircha bo'sh.";
