@@ -104,9 +104,28 @@ public class DatabaseSchemaInitializer {
                 )
                 """);
 
-        // Drop stale Hibernate-generated CHECK constraints on shift columns.
-        // ddl-auto=update never updates these, so adding a new Shift enum value
-        // (e.g. LONG_DAY) would otherwise be rejected by the old IN (...) list.
+        dropStaleEnumCheckConstraints();
+    }
+
+    /**
+     * Hibernate (6+/7) auto-generates a CHECK constraint such as
+     * {@code col in ('A','B',...)} for every {@code @Enumerated(EnumType.STRING)}
+     * column. With {@code ddl-auto: update} those constraints are created once and
+     * never refreshed, so adding a new enum value (e.g. a new Shift or a new
+     * AuditActionType) makes every INSERT carrying that value fail with a constraint
+     * violation. The bot then swallows the exception and the user just sees a generic
+     * error or no response at all.
+     *
+     * <p>This codebase defines no hand-written CHECK constraints, so it is safe to
+     * drop all of these Hibernate-generated enum whitelists. The columns stay plain
+     * VARCHAR, so any present or future enum value is accepted. Runs on every boot and
+     * is idempotent: once a constraint is dropped, Hibernate's {@code update} mode does
+     * not re-add it to an already-existing column.
+     *
+     * <p>NOTE: if you ever add a genuine business CHECK constraint by hand, narrow the
+     * filter below to the specific enum columns instead of matching every "in (...)".
+     */
+    private void dropStaleEnumCheckConstraints() {
         jdbcTemplate.execute("""
                 DO $$
                 DECLARE r RECORD;
@@ -115,17 +134,14 @@ public class DatabaseSchemaInitializer {
                         SELECT conrelid::regclass AS tbl, conname
                         FROM pg_constraint
                         WHERE contype = 'c'
-                          AND conrelid IN (
-                              'employees'::regclass,
-                              'pending_registrations'::regclass,
-                              'profile_change_requests'::regclass)
-                          AND pg_get_constraintdef(oid) ILIKE '%shift%'
+                          AND connamespace = 'public'::regnamespace
+                          AND pg_get_constraintdef(oid) ILIKE '%in (%'
                     LOOP
                         EXECUTE format('ALTER TABLE %s DROP CONSTRAINT %I', r.tbl, r.conname);
                     END LOOP;
                 END $$;
                 """);
 
-        log.info("Database schema ensured; stale shift CHECK constraints removed");
+        log.info("Dropped stale Hibernate-generated enum CHECK constraints (if any)");
     }
 }
