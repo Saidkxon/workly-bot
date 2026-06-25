@@ -113,17 +113,23 @@ public class DatabaseSchemaInitializer {
      * column. With {@code ddl-auto: update} those constraints are created once and
      * never refreshed, so adding a new enum value (e.g. a new Shift or a new
      * AuditActionType) makes every INSERT carrying that value fail with a constraint
-     * violation. The bot then swallows the exception and the user just sees a generic
+     * violation. The bot then swallows the exception, and the user just sees a generic
      * error or no response at all.
      *
-     * <p>This codebase defines no hand-written CHECK constraints, so it is safe to
-     * drop all of these Hibernate-generated enum whitelists. The columns stay plain
-     * VARCHAR, so any present or future enum value is accepted. Runs on every boot and
-     * is idempotent: once a constraint is dropped, Hibernate's {@code update} mode does
-     * not re-add it to an already-existing column.
+     * <p>This codebase defines no handwritten CHECK constraints, so every CHECK
+     * constraint in the public schema is one of these Hibernate enum whitelists and is
+     * safe to drop. The columns stay plain VARCHAR, so any present or future enum value
+     * is accepted. Runs on every boot and is idempotent: once a constraint is dropped,
+     * Hibernate's {@code update} mode does not re-add it to an already-existing column.
      *
-     * <p>NOTE: if you ever add a genuine business CHECK constraint by hand, narrow the
-     * filter below to the specific enum columns instead of matching every "in (...)".
+     * <p>We match on {@code contype = 'c'} (the constraint type) rather than the text of
+     * the constraint definition. An earlier attempt matched {@code pg_get_constraintdef()}
+     * against {@code 'in ('}, but PostgreSQL rewrites {@code col IN (...)} into
+     * {@code col = ANY (ARRAY[...])} when it stores the constraint, so that text never
+     * appeared and the audit_logs constraint was missed.
+     *
+     * <p>NOTE: if you ever add a genuine business CHECK constraint by hand, restrict the
+     * filter below to the specific enum columns/tables so you do not drop your own.
      */
     private void dropStaleEnumCheckConstraints() {
         jdbcTemplate.execute("""
@@ -135,7 +141,6 @@ public class DatabaseSchemaInitializer {
                         FROM pg_constraint
                         WHERE contype = 'c'
                           AND connamespace = 'public'::regnamespace
-                          AND pg_get_constraintdef(oid) ILIKE '%in (%'
                     LOOP
                         EXECUTE format('ALTER TABLE %s DROP CONSTRAINT %I', r.tbl, r.conname);
                     END LOOP;

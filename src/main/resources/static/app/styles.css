@@ -1,7 +1,8 @@
 /* ============================================================
    Workly mini-app — "presence over a shift" identity
    Signature: amber (time/punctuality) accent, payslip ledger,
-   day timeline. Everything else stays quiet and disciplined.
+   day timeline, and a punctuality score ring. Everything else
+   stays quiet and disciplined.
    ============================================================ */
 
 :root {
@@ -22,15 +23,49 @@
     --neg-soft: #fbdcdf;
     --warn: #1f6fd6;
     --warn-soft: #d8e7fb;
+    --gold: #d9a400;
+    --silver: #8b93a6;
+    --bronze: #b06a32;
     --shadow: 0 1px 2px rgba(19,26,42,.06), 0 8px 24px rgba(19,26,42,.06);
+    --shadow-lift: 0 4px 10px rgba(19,26,42,.10), 0 16px 40px rgba(19,26,42,.12);
     --radius: 18px;
     --radius-sm: 12px;
     --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
     --display: "Sora", system-ui, sans-serif;
+    --tier: var(--accent);   /* default ring/medal color; overridden inline per score */
+    color-scheme: light;
 }
 
+/* Dark tokens — shared by explicit choice and (below) by system auto */
+:root[data-theme="dark"] {
+    --bg: #0c111e;
+    --surface: #141b2c;
+    --surface-2: #1c2436;
+    --ink: #eaeef7;
+    --ink-soft: #9aa4bb;
+    --ink-faint: #6c768e;
+    --line: #243049;
+    --primary: #8b83f5;
+    --primary-soft: #21264a;
+    --accent: #f6b13c;
+    --accent-soft: #36290f;
+    --pos: #34d399;
+    --pos-soft: #0f2e25;
+    --neg: #ff6b73;
+    --neg-soft: #34151c;
+    --warn: #5aa2ff;
+    --warn-soft: #14233f;
+    --gold: #f4cf52;
+    --silver: #aab2c6;
+    --bronze: #d68a52;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 28px rgba(0,0,0,.35);
+    --shadow-lift: 0 6px 16px rgba(0,0,0,.4), 0 18px 44px rgba(0,0,0,.5);
+    color-scheme: dark;
+}
+
+/* Auto: follow the system only when the user hasn't picked a theme */
 @media (prefers-color-scheme: dark) {
-    :root {
+    :root:not([data-theme="light"]):not([data-theme="dark"]) {
         --bg: #0c111e;
         --surface: #141b2c;
         --surface-2: #1c2436;
@@ -48,7 +83,12 @@
         --neg-soft: #34151c;
         --warn: #5aa2ff;
         --warn-soft: #14233f;
+        --gold: #f4cf52;
+        --silver: #aab2c6;
+        --bronze: #d68a52;
         --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 28px rgba(0,0,0,.35);
+        --shadow-lift: 0 6px 16px rgba(0,0,0,.4), 0 18px 44px rgba(0,0,0,.5);
+        color-scheme: dark;
     }
 }
 
@@ -63,6 +103,7 @@ body {
     line-height: 1.5;
     -webkit-font-smoothing: antialiased;
     padding-bottom: env(safe-area-inset-bottom);
+    transition: background .3s ease, color .3s ease;
 }
 
 .app {
@@ -96,6 +137,9 @@ h2 { font-family: var(--display); font-size: 1.05rem; font-weight: 600; margin: 
 }
 .brand-name { font-family: var(--display); font-weight: 700; letter-spacing: -.02em; font-size: 1.1rem; }
 
+.appbar-right { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.appbar-actions { display: flex; align-items: center; gap: 4px; }
+
 .profile { display: flex; align-items: center; gap: 9px; min-width: 0; }
 .profile-avatar {
     width: 38px; height: 38px; border-radius: 50%; flex: none;
@@ -107,6 +151,25 @@ h2 { font-family: var(--display); font-size: 1.05rem; font-weight: 600; margin: 
 .profile-meta strong { font-size: .9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .profile-meta span { font-size: .76rem; color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
+/* ---------- Icon button (theme / refresh) ---------- */
+.icon-btn {
+    width: 38px; height: 38px; flex: none; cursor: pointer;
+    display: grid; place-items: center;
+    background: var(--surface); color: var(--ink-soft);
+    border: 1px solid var(--line); border-radius: 50%;
+    position: relative; overflow: hidden;
+    transition: color .18s, border-color .18s, transform .12s, box-shadow .18s;
+}
+.icon-btn:hover { color: var(--ink); border-color: var(--ink-faint); box-shadow: var(--shadow); }
+.icon-btn:active { transform: scale(.9); }
+.icon-btn svg { width: 19px; height: 19px; display: block; }
+.icon-btn .ico { display: none; }
+.icon-btn[data-theme-state="auto"] .ico-auto,
+.icon-btn[data-theme-state="light"] .ico-light,
+.icon-btn[data-theme-state="dark"] .ico-dark { display: block; }
+#refreshBtn.spinning svg { animation: spin .7s linear; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
 /* ---------- Cards ---------- */
 .card {
     background: var(--surface);
@@ -117,6 +180,15 @@ h2 { font-family: var(--display); font-size: 1.05rem; font-weight: 600; margin: 
 }
 .card-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 14px; }
 
+/* Staggered entrance for cards inside the active view */
+.view.is-active .card,
+.view.is-active .metrics { animation: rise .34s ease both; }
+.view.is-active > *:nth-child(2) { animation-delay: .04s; }
+.view.is-active > *:nth-child(3) { animation-delay: .08s; }
+.view.is-active > *:nth-child(4) { animation-delay: .12s; }
+.view.is-active > *:nth-child(5) { animation-delay: .16s; }
+.view.is-active > *:nth-child(6) { animation-delay: .20s; }
+
 /* ---------- Tabs ---------- */
 .tabs {
     display: flex; gap: 4px; padding: 4px;
@@ -126,14 +198,16 @@ h2 { font-family: var(--display); font-size: 1.05rem; font-weight: 600; margin: 
 .tab {
     flex: 1; border: 0; background: transparent; cursor: pointer;
     font-family: var(--display); font-weight: 600; font-size: .9rem; color: var(--ink-soft);
-    padding: 9px 10px; border-radius: 10px; transition: background .18s, color .18s;
+    padding: 9px 10px; border-radius: 10px; position: relative; overflow: hidden;
+    transition: background .18s, color .18s, transform .12s;
 }
+.tab:active { transform: scale(.97); }
 .tab.is-active { background: var(--surface); color: var(--ink); box-shadow: var(--shadow); }
 
 /* ---------- Views ---------- */
 .view { display: none; flex-direction: column; gap: 14px; }
-.view.is-active { display: flex; animation: rise .28s ease both; }
-@keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.view.is-active { display: flex; }
+@keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
 
 /* ---------- Today timeline (signature) ---------- */
 .timeline { margin-bottom: 16px; }
@@ -154,6 +228,11 @@ h2 { font-family: var(--display); font-size: 1.05rem; font-weight: 600; margin: 
 }
 .timeline-marker.out i { border-color: var(--accent); }
 .timeline-marker.now i { width: 3px; height: 20px; border-radius: 2px; background: var(--ink); border: 0; }
+.timeline-marker.now i::after {
+    content: ""; position: absolute; inset: -4px; border-radius: 999px;
+    background: var(--ink); opacity: .18; animation: pulse 2s ease-out infinite;
+}
+@keyframes pulse { 0% { transform: scale(.6); opacity: .35; } 100% { transform: scale(1.6); opacity: 0; } }
 .timeline-marker span {
     position: absolute; top: -20px; left: 50%; transform: translateX(-50%);
     font-size: .68rem; color: var(--ink-soft); white-space: nowrap; font-variant-numeric: tabular-nums;
@@ -170,6 +249,71 @@ h2 { font-family: var(--display); font-size: 1.05rem; font-weight: 600; margin: 
 .stat span { font-size: .74rem; color: var(--ink-soft); }
 .stat strong { font-family: var(--display); font-size: 1.05rem; font-variant-numeric: tabular-nums; font-weight: 600; }
 
+/* ---------- Performance scorecard (signature) ---------- */
+.scorecard { display: grid; grid-template-columns: auto 1fr; gap: 18px; align-items: center; }
+.score-ring { position: relative; width: 116px; height: 116px; flex: none; }
+.score-ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.score-ring .ring-track { fill: none; stroke: var(--surface-2); stroke-width: 11; }
+.score-ring .ring-bar {
+    fill: none; stroke: var(--tier, var(--accent)); stroke-width: 11; stroke-linecap: round;
+    transition: stroke-dashoffset 1s cubic-bezier(.22,1,.36,1), stroke .4s;
+}
+.score-ring .ring-center {
+    position: absolute; inset: 0; display: grid; place-items: center; text-align: center; line-height: 1;
+}
+.score-ring .ring-num { font-family: var(--display); font-weight: 700; font-size: 1.9rem; font-variant-numeric: tabular-nums; color: var(--ink); }
+.score-ring .ring-unit { font-size: .66rem; color: var(--ink-faint); letter-spacing: .04em; text-transform: uppercase; margin-top: 3px; }
+
+.score-side { min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+.medal {
+    display: inline-flex; align-items: center; gap: 8px; align-self: flex-start;
+    padding: 6px 12px 6px 8px; border-radius: 999px;
+    background: var(--surface-2); border: 1px solid var(--line);
+    font-family: var(--display); font-weight: 600; font-size: .86rem;
+}
+.medal .medal-disc {
+    width: 22px; height: 22px; border-radius: 50%; flex: none;
+    display: grid; place-items: center; color: #fff; font-size: .7rem; font-weight: 700;
+    background: var(--tier, var(--ink-faint));
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--tier, var(--ink-faint)) 22%, transparent);
+}
+.score-meta { display: flex; flex-wrap: wrap; gap: 8px 16px; }
+.score-meta .sm { display: flex; flex-direction: column; gap: 1px; }
+.score-meta .sm-val { font-family: var(--display); font-weight: 700; font-size: 1.02rem; font-variant-numeric: tabular-nums; }
+.score-meta .sm-lbl { font-size: .72rem; color: var(--ink-soft); }
+
+.badges { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 14px; }
+.badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: .76rem; font-weight: 600; padding: 6px 11px; border-radius: 999px;
+    background: var(--surface-2); color: var(--ink-soft); border: 1px solid var(--line);
+    animation: badgePop .4s cubic-bezier(.34,1.56,.64,1) both;
+}
+.badge .badge-ico { width: 13px; height: 13px; }
+.badge.is-gold { background: color-mix(in srgb, var(--gold) 16%, var(--surface)); color: var(--gold); border-color: color-mix(in srgb, var(--gold) 40%, transparent); }
+.badge.is-pos  { background: var(--pos-soft); color: var(--pos); border-color: color-mix(in srgb, var(--pos) 35%, transparent); }
+.badge.is-amber{ background: var(--accent-soft); color: var(--accent); border-color: color-mix(in srgb, var(--accent) 35%, transparent); }
+@keyframes badgePop { from { opacity: 0; transform: scale(.7); } to { opacity: 1; transform: none; } }
+
+.progress { margin-top: 14px; }
+.progress-head { display: flex; justify-content: space-between; font-size: .76rem; color: var(--ink-soft); margin-bottom: 6px; }
+.progress-head b { color: var(--ink); font-family: var(--display); font-variant-numeric: tabular-nums; }
+.progress-track { height: 8px; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
+.progress-bar {
+    height: 100%; width: 0; border-radius: 999px;
+    background: linear-gradient(90deg, var(--primary), var(--accent));
+    transition: width 1s cubic-bezier(.22,1,.36,1);
+}
+.score-empty { color: var(--ink-soft); font-size: .88rem; padding: 6px 0 2px; }
+
+/* lateness sparkline (employee performance panel) */
+.sparkline { display: flex; align-items: flex-end; gap: 3px; height: 46px; margin-top: 14px; }
+.spark-bar { flex: 1; min-width: 2px; border-radius: 3px 3px 1px 1px; background: var(--surface-2); transition: height .6s cubic-bezier(.22,1,.36,1); }
+.spark-bar.on { background: var(--pos); }
+.spark-bar.late { background: var(--accent); }
+.spark-bar.miss { background: var(--neg); }
+.sparkline-cap { display: flex; justify-content: space-between; font-size: .68rem; color: var(--ink-faint); margin-top: 5px; }
+
 /* ---------- Payslip ledger (signature) ---------- */
 .payslip .ledger { display: flex; flex-direction: column; }
 .ledger-row { display: flex; align-items: baseline; justify-content: space-between; padding: 11px 0; gap: 12px; }
@@ -183,9 +327,7 @@ h2 { font-family: var(--display); font-size: 1.05rem; font-weight: 600; margin: 
 }
 .ledger-row.total .lbl { color: var(--ink); font-family: var(--display); font-weight: 600; }
 .ledger-row.total .val { font-size: 1.25rem; font-weight: 700; color: var(--ink); }
-.payslip-note {
-    display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px;
-}
+.payslip-note { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
 .chip {
     font-size: .76rem; padding: 5px 10px; border-radius: 999px;
     background: var(--surface-2); color: var(--ink-soft); font-variant-numeric: tabular-nums;
@@ -198,19 +340,37 @@ h2 { font-family: var(--display); font-size: 1.05rem; font-weight: 600; margin: 
 .metric {
     background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-sm);
     box-shadow: var(--shadow); padding: 13px 14px; display: flex; flex-direction: column; gap: 3px;
+    transition: transform .12s, box-shadow .18s;
 }
+.metric:hover { transform: translateY(-1px); box-shadow: var(--shadow-lift); }
 .metric span { font-size: .76rem; color: var(--ink-soft); }
 .metric strong { font-family: var(--display); font-size: 1.4rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+/* ---------- Team pulse donut ---------- */
+.pulse-card { display: grid; grid-template-columns: auto 1fr; gap: 18px; align-items: center; }
+.pulse-ring { position: relative; width: 104px; height: 104px; flex: none; }
+.pulse-ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.pulse-ring .pulse-seg { fill: none; stroke-width: 13; transition: stroke-dasharray .9s cubic-bezier(.22,1,.36,1); }
+.pulse-ring .pulse-center { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; line-height: 1.05; }
+.pulse-ring .pulse-num { font-family: var(--display); font-weight: 700; font-size: 1.6rem; }
+.pulse-ring .pulse-lbl { font-size: .64rem; color: var(--ink-faint); text-transform: uppercase; letter-spacing: .04em; margin-top: 2px; }
+.pulse-legend { display: flex; flex-direction: column; gap: 8px; }
+.pulse-legend .pl { display: flex; align-items: center; gap: 9px; font-size: .84rem; }
+.pulse-legend .pl-dot { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+.pulse-legend .pl-val { margin-left: auto; font-family: var(--display); font-weight: 700; font-variant-numeric: tabular-nums; }
+.pl-dot.on { background: var(--pos); } .pl-dot.late { background: var(--accent); }
+.pl-dot.miss { background: var(--warn); } .pl-dot.absent { background: var(--neg); }
 
 /* ---------- Filter cards (team) ---------- */
 .filter-cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 14px; }
 .filter-card {
     text-align: left; cursor: pointer; border: 1px solid var(--line);
     background: var(--surface); border-radius: var(--radius-sm); padding: 12px 13px;
-    display: flex; flex-direction: column; gap: 3px;
-    transition: border-color .15s, background .15s, transform .05s;
+    display: flex; flex-direction: column; gap: 3px; position: relative; overflow: hidden;
+    transition: border-color .15s, background .15s, transform .1s, box-shadow .18s;
 }
-.filter-card:active { transform: scale(.985); }
+.filter-card:hover { box-shadow: var(--shadow); transform: translateY(-1px); }
+.filter-card:active { transform: scale(.97); }
 .filter-card .fc-label { font-size: .76rem; color: var(--ink-soft); line-height: 1.2; }
 .filter-card .fc-value { font-family: var(--display); font-size: 1.35rem; font-weight: 700; font-variant-numeric: tabular-nums; }
 .filter-card[data-filter="arrived"].is-on { background: var(--pos-soft); border-color: var(--pos); }
@@ -228,18 +388,35 @@ h2 { font-family: var(--display); font-size: 1.05rem; font-weight: 600; margin: 
 input, select, .month-input {
     font: inherit; color: var(--ink); background: var(--surface);
     border: 1px solid var(--line); border-radius: 10px; padding: 9px 11px; min-width: 0;
+    transition: border-color .15s, box-shadow .15s;
 }
-input:focus, select:focus, .btn:focus-visible, .tab:focus-visible, .filter-card:focus-visible {
+input:focus, select:focus, .btn:focus-visible, .tab:focus-visible, .filter-card:focus-visible, .icon-btn:focus-visible {
     outline: 2px solid var(--primary); outline-offset: 2px;
 }
+input:focus, select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); }
 .month-input { padding: 7px 10px; font-size: .85rem; }
 .employee-select { width: 100%; margin-bottom: 12px; }
 
 /* ---------- Buttons ---------- */
-.btn { font: inherit; font-weight: 600; cursor: pointer; border-radius: 10px; padding: 9px 14px; border: 1px solid transparent; }
+.btn {
+    font: inherit; font-weight: 600; cursor: pointer; border-radius: 10px; padding: 9px 14px;
+    border: 1px solid transparent; position: relative; overflow: hidden;
+    transition: transform .12s, box-shadow .18s, background .18s, color .18s, border-color .18s;
+}
+.btn:active { transform: scale(.96); }
 .btn-primary { background: var(--primary); color: #fff; }
+.btn-primary:hover { box-shadow: var(--shadow-lift); transform: translateY(-1px); }
+.btn-primary:active { transform: scale(.96); }
 .btn-ghost { background: transparent; color: var(--ink-soft); border-color: var(--line); }
-.btn:disabled { opacity: .5; cursor: default; }
+.btn-ghost:hover { color: var(--ink); border-color: var(--ink-faint); }
+.btn:disabled { opacity: .5; cursor: default; transform: none; box-shadow: none; }
+
+/* ripple (added via JS) */
+.ripple {
+    position: absolute; border-radius: 50%; transform: scale(0); pointer-events: none;
+    background: currentColor; opacity: .25; animation: ripple .55s ease-out forwards;
+}
+@keyframes ripple { to { transform: scale(2.4); opacity: 0; } }
 
 /* ---------- Tables ---------- */
 .table-wrap { overflow-x: auto; margin: 0 -16px -4px; padding: 0 16px; }
@@ -249,6 +426,8 @@ input:focus, select:focus, .btn:focus-visible, .tab:focus-visible, .filter-card:
     text-transform: uppercase; letter-spacing: .03em; padding: 6px 10px 8px; border-bottom: 1px solid var(--line);
 }
 .data-table td { padding: 10px; border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+.data-table tbody tr { transition: background .12s; }
+.data-table tbody tr:hover { background: var(--surface-2); }
 .data-table tr:last-child td { border-bottom: 0; }
 .data-table td:first-child { font-weight: 500; }
 .cell-deduct { color: var(--neg); font-family: var(--mono); }
@@ -277,15 +456,29 @@ input:focus, select:focus, .btn:focus-visible, .tab:focus-visible, .filter-card:
     font-size: .85rem; box-shadow: var(--shadow); animation: rise .2s ease both;
 }
 
-/* ---------- Loading ---------- */
+/* ---------- Loading (skeleton shimmer) ---------- */
 .loading .view, .loading .metrics, .loading .filter-cards { opacity: .55; }
 .loading .appbar { opacity: 1; }
+.skeleton {
+    position: relative; overflow: hidden;
+    background: var(--surface-2); border-radius: var(--radius-sm); color: transparent;
+}
+.skeleton::after {
+    content: ""; position: absolute; inset: 0;
+    background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--ink) 8%, transparent), transparent);
+    transform: translateX(-100%); animation: shimmer 1.3s infinite;
+}
+@keyframes shimmer { to { transform: translateX(100%); } }
 
 @media (max-width: 380px) {
     .stat-row, .metrics, .filter-cards { grid-template-columns: 1fr 1fr; }
     .app { padding: 12px 10px 32px; }
     .card { padding: 14px; }
     .table-wrap { margin: 0 -14px -4px; padding: 0 14px; }
+    .scorecard, .pulse-card { grid-template-columns: 1fr; justify-items: center; text-align: center; }
+    .score-side, .pulse-legend { width: 100%; }
+    .medal { align-self: center; }
+    .score-meta { justify-content: center; }
 }
 
 @media (prefers-reduced-motion: reduce) {
