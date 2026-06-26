@@ -83,14 +83,14 @@ public class ReminderService {
     private String buildPublicAwardMessage(AwardService.MonthlyAwards awards) {
         StringBuilder sb = new StringBuilder();
         sb.append("🏆 ").append(awards.month()).append(" oyi natijalari!\n\n");
-        sb.append("Eng mehnatkash xodim: ").append(awards.hardestWorker().fullName())
+        sb.append("Eng effektive xodim: ").append(awards.hardestWorker().fullName())
                 .append(" (").append(awards.hardestWorker().department()).append(").\n")
                 .append("Jami ishlangan vaqt: ").append(SalaryService.formatMinutes(awards.hardestWorker().value())).append(".\n\n");
         if (awards.mostPunctual() != null) {
             sb.append("Eng intizomli (kam kechikkan) xodim: ").append(awards.mostPunctual().fullName())
                     .append(" (").append(awards.mostPunctual().department()).append(").\n\n");
         }
-        sb.append("Tabriklaymiz! 🎉 Keling, kelgusi oyda biz ham ular kabi intizomli va mehnatkash bo'lamiz.");
+        sb.append("Tabriklaymiz ularni! 🎉 va kelgusi oyda hammaga omad tilaymiz. Samaradorligingiz uchun rahmat :)");
         return sb.toString();
     }
 
