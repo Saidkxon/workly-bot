@@ -23,7 +23,7 @@ public class PenaltyProperties {
     private int graceMinutes = 10;
 
     /** So'm deducted per late minute (after the first warning day of the month). */
-    private long amountPerLateMinute = 3000;
+    private long amountPerLateMinute = 1000;
 
     /** Default monthly base salary for Qabul bo'limi. */
     private long defaultQabulSalary = 4_000_000;
