@@ -141,7 +141,7 @@ public class BotMessages {
             "🌐 Ilova";
 
     public static final String BUTTON_FIX_MISTAKE =
-            "✏️ Kelgan vaqtni to'g'irlash";
+            "✏️ Kelgan/Ketgan vaqtni to'g'irlash";
 
     public static final String BUTTON_EARLY_LEAVE =
             "🏃 Erta ketish";
