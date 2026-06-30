@@ -352,6 +352,10 @@ public class WorklyTelegramBot implements SpringLongPollingBot {
                 sendPlainMessage(chatId, "Oy formati noto'g'ri. yyyy-MM formatida kiriting. Masalan: 2026-04", telegramClient);
                 return;
             }
+            if (month.isAfter(YearMonth.now())) {
+                sendPlainMessage(chatId, "Kelajak oyi uchun tarix mavjud emas. O'tgan yoki joriy oyni kiriting. Masalan: 2026-04", telegramClient);
+                return;
+            }
 
             resetSession(session);
             sendMainMenu(employee, chatId, telegramClient, reportService.buildMonthlyHistory(employee, month));
@@ -368,6 +372,10 @@ public class WorklyTelegramBot implements SpringLongPollingBot {
             YearMonth month = parseHistoryMonth(text);
             if (month == null) {
                 sendPlainMessage(chatId, "Oy formati noto'g'ri. yyyy-MM formatida kiriting. Masalan: 2026-04", telegramClient);
+                return;
+            }
+            if (month.isAfter(YearMonth.now())) {
+                sendPlainMessage(chatId, "Kelajak oyi uchun tarix mavjud emas. O'tgan yoki joriy oyni kiriting. Masalan: 2026-04", telegramClient);
                 return;
             }
 
