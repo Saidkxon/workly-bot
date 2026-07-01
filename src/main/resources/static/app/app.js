@@ -32,6 +32,10 @@ const els = {
     timelineNow: $("timelineNow"), timelineIn: $("timelineIn"), timelineInLabel: $("timelineInLabel"),
     timelineOut: $("timelineOut"), timelineOutLabel: $("timelineOutLabel"), todayStats: $("todayStats"),
     performanceMonth: $("performanceMonth"), performanceBody: $("performanceBody"),
+    awardsCard: $("awardsCard"), awardsMonth: $("awardsMonth"), awardsBody: $("awardsBody"),
+    exportReportBtn: $("exportReportBtn"), exportEmpBtn: $("exportEmpBtn"),
+    holidaysCard: $("holidaysCard"), holidayDate: $("holidayDate"), holidayDesc: $("holidayDesc"),
+    holidayAdd: $("holidayAdd"), holidaysBody: $("holidaysBody"),
     payslipMonth: $("payslipMonth"), payslipBody: $("payslipBody"),
     selfMonth: $("selfMonth"), selfHistoryBody: $("selfHistoryBody"),
     pulseCard: $("pulseCard"), pulseRing: $("pulseRing"), pulseLegend: $("pulseLegend"),
@@ -124,6 +128,13 @@ els.empMonth.addEventListener("change", loadEmployeeHistory);
 els.refreshActivities.addEventListener("click", loadActivities);
 els.refreshAudit.addEventListener("click", loadAuditLog);
 els.refreshFeedbacks.addEventListener("click", loadFeedbacks);
+els.exportReportBtn.addEventListener("click", () => { haptic("medium"); downloadExcel(`/api/app/report/excel`, { month: els.selfMonth.value }, els.exportReportBtn); });
+els.exportEmpBtn.addEventListener("click", () => {
+    if (!state.selectedEmployeeId) { showToast("Avval xodimni tanlang."); return; }
+    haptic("medium");
+    downloadExcel(`/api/app/employees/${state.selectedEmployeeId}/excel`, { month: els.empMonth.value }, els.exportEmpBtn);
+});
+els.holidayAdd.addEventListener("click", addHoliday);
 els.reportSearch.addEventListener("input", () => { state.report.query = els.reportSearch.value.trim().toLowerCase(); renderReportRows(); });
 els.reportDept.addEventListener("change", () => { state.report.dept = els.reportDept.value; renderReportRows(); });
 els.reportClear.addEventListener("click", clearReportFilters);
@@ -146,6 +157,9 @@ async function loadDashboard(month) {
         renderPayslip(data.salary, data.monthHistory, data.todayDate);
         renderSelfHistory(data.salary, data.monthHistory);
 
+        state.role = data.employee.role;
+        loadAwards(month);
+
         state.isManager = Boolean(data.managerSummary);
         els.tabs.hidden = false;
         els.tabTeam.hidden = !state.isManager;
@@ -157,10 +171,12 @@ async function loadDashboard(month) {
             els.activitiesCard.hidden = data.employee.role !== "ADMIN";
             els.auditCard.hidden = data.employee.role !== "ADMIN";
             els.feedbackCard.hidden = data.employee.role !== "ADMIN";
+            els.holidaysCard.hidden = data.employee.role !== "ADMIN";
             if (data.employee.role === "ADMIN") {
                 loadActivities();
                 loadAuditLog();
                 loadFeedbacks();
+                loadHolidays();
             }
         } else {
             switchTab("self");
@@ -202,6 +218,79 @@ async function loadAuditLog() {
 async function loadFeedbacks() {
     try { renderFeedbacks(await apiGet("/api/app/feedbacks", {})); }
     catch (error) { showToast(error.message); }
+}
+
+async function loadAwards(month) {
+    try { renderAwards(await apiGet("/api/app/awards", month ? { month } : {})); }
+    catch (_) { els.awardsCard.hidden = true; }
+}
+
+async function loadHolidays() {
+    try { renderHolidays(await apiGet("/api/app/holidays", {})); }
+    catch (error) { showToast(error.message); }
+}
+
+async function addHoliday() {
+    const date = els.holidayDate.value;
+    if (!date) { showToast("Sanani tanlang."); return; }
+    els.holidayAdd.disabled = true;
+    try {
+        await apiSend("POST", "/api/app/holidays", { date, description: els.holidayDesc.value.trim() });
+        els.holidayDate.value = "";
+        els.holidayDesc.value = "";
+        haptic("medium");
+        loadHolidays();
+    } catch (error) {
+        showToast(error.message);
+    } finally {
+        els.holidayAdd.disabled = false;
+    }
+}
+
+async function deleteHoliday(date) {
+    try {
+        await apiSend("DELETE", `/api/app/holidays/${date}`, null);
+        haptic();
+        loadHolidays();
+    } catch (error) {
+        showToast(error.message);
+    }
+}
+
+async function downloadExcel(path, params, btn) {
+    const url = new URL(path, location.origin);
+    Object.entries(params || {}).forEach(([k, v]) => { if (v) url.searchParams.set(k, v); });
+    if (!state.initData && state.devUserId) url.searchParams.set("userId", state.devUserId);
+    if (btn) btn.disabled = true;
+    try {
+        const response = await fetch(url, { headers: state.initData ? { "X-Telegram-Init-Data": state.initData } : {} });
+        if (!response.ok) throw new Error((await response.text()) || "Excel yuklab bo'lmadi.");
+        const blob = await response.blob();
+        const filename = (response.headers.get("Content-Disposition") || "").match(/filename="?([^"]+)"?/)?.[1]
+            || "workly-hisobot.xlsx";
+        const objectUrl = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = objectUrl;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(objectUrl), 4000);
+    } catch (error) {
+        showToast(error.message);
+    } finally {
+        if (btn) btn.disabled = false;
+    }
+}
+
+async function apiSend(method, path, body) {
+    const url = new URL(path, location.origin);
+    if (!state.initData && state.devUserId) url.searchParams.set("userId", state.devUserId);
+    const headers = { "Content-Type": "application/json" };
+    if (state.initData) headers["X-Telegram-Init-Data"] = state.initData;
+    const response = await fetch(url, { method, headers, body: body ? JSON.stringify(body) : undefined });
+    if (!response.ok) throw new Error((await response.text()) || `So'rov bajarilmadi (${response.status})`);
+    return response.status === 204 ? null : response.json();
 }
 
 async function apiGet(path, params) {
@@ -278,8 +367,10 @@ function computePerf(salary) {
     const workedDays = worked.length;
     if (!workedDays) return null;
     const lateDays = salary.lateDays ?? worked.filter((d) => d.lateMinutes > 0).length;
-    const onTimeDays = Math.max(0, workedDays - lateDays);
-    const score = Math.round((onTimeDays / workedDays) * 100);
+    // Prefer the server's canonical figures (single source of truth shared with the
+    // bot award); fall back to a client-side computation for older responses.
+    const onTimeDays = salary.onTimeDays ?? Math.max(0, workedDays - lateDays);
+    const score = salary.punctualityScore ?? Math.round((onTimeDays / workedDays) * 100);
 
     // longest run of consecutive on-time worked days (chronological)
     let streak = 0, longest = 0;
@@ -594,6 +685,47 @@ function renderFeedbacks(rows) {
     els.feedbackBody.innerHTML = rows.map((r) => `<tr>
         <td>${esc(fmtDateTime(r.createdAt))}</td><td>${esc(r.fullName)}</td>
         <td>${esc(r.department || "—")}</td><td>${esc(r.message)}</td></tr>`).join("");
+}
+
+/* ---------------- awards ---------------- */
+function renderAwards(awards) {
+    const rows = [];
+    if (awards?.hardestWorker) {
+        rows.push(awardRow("gold", "🏆", "Eng mehnatkash", awards.hardestWorker, formatMinutes(awards.hardestWorker.value)));
+    }
+    if (awards?.mostPunctual) {
+        rows.push(awardRow("punctual", "⏱️", "Eng intizomli", awards.mostPunctual, awards.mostPunctual.value + "% aniq"));
+    }
+    if (awards?.mostLate) {
+        rows.push(awardRow("late", "🐢", "Eng ko'p kechikkan", awards.mostLate, formatMinutes(awards.mostLate.value)));
+    }
+    if (!rows.length) { els.awardsCard.hidden = true; return; }
+    els.awardsCard.hidden = false;
+    els.awardsMonth.textContent = awards.month || "";
+    els.awardsBody.innerHTML = `<div class="award-list">${rows.join("")}</div>`;
+}
+function awardRow(cls, medal, title, award, stat) {
+    return `<div class="award ${cls}">
+        <div class="award-medal">${medal}</div>
+        <div class="award-info">
+            <span class="award-title">${esc(title)}</span>
+            <span class="award-name">${esc(award.fullName)}</span>
+            <span class="award-sub">${esc(award.department || "")}</span>
+        </div>
+        <span class="award-stat">${esc(stat)}</span>
+    </div>`;
+}
+
+/* ---------------- holidays ---------------- */
+function renderHolidays(rows) {
+    if (!rows || !rows.length) return emptyRow(els.holidaysBody, 3, "Dam olish kunlari qo'shilmagan.");
+    els.holidaysBody.innerHTML = rows.map((h) => `<tr>
+        <td>${esc(h.date)}</td>
+        <td>${esc(h.description || "—")}</td>
+        <td style="text-align:right"><button class="holiday-del" type="button" data-date="${esc(h.date)}">O'chirish</button></td>
+    </tr>`).join("");
+    els.holidaysBody.querySelectorAll(".holiday-del").forEach((b) =>
+        b.addEventListener("click", () => deleteHoliday(b.dataset.date)));
 }
 
 /* ---------------- tabs ---------------- */

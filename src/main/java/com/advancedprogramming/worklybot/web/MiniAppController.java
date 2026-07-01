@@ -6,6 +6,7 @@ import com.advancedprogramming.worklybot.entity.AuditLog;
 import com.advancedprogramming.worklybot.entity.Attendance;
 import com.advancedprogramming.worklybot.entity.Employee;
 import com.advancedprogramming.worklybot.entity.FeedbackResponse;
+import com.advancedprogramming.worklybot.entity.Holiday;
 import com.advancedprogramming.worklybot.entity.enums.CorrectionStatus;
 import com.advancedprogramming.worklybot.entity.enums.Role;
 import com.advancedprogramming.worklybot.entity.enums.Shift;
@@ -17,15 +18,24 @@ import com.advancedprogramming.worklybot.repository.PendingRegistrationRepositor
 import com.advancedprogramming.worklybot.repository.ProfileChangeRequestRepository;
 import com.advancedprogramming.worklybot.service.AttendanceService;
 import com.advancedprogramming.worklybot.service.AuditLogService;
+import com.advancedprogramming.worklybot.service.AwardService;
+import com.advancedprogramming.worklybot.service.ExcelReportService;
 import com.advancedprogramming.worklybot.service.FeedbackService;
 import com.advancedprogramming.worklybot.service.MonthlySalaryBreakdown;
 import com.advancedprogramming.worklybot.service.SalaryDayRow;
 import com.advancedprogramming.worklybot.service.SalaryService;
+import com.advancedprogramming.worklybot.service.WorkCalendarService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -63,6 +73,9 @@ public class MiniAppController {
     private final AuditLogService auditLogService;
     private final SalaryService salaryService;
     private final FeedbackService feedbackService;
+    private final AwardService awardService;
+    private final ExcelReportService excelReportService;
+    private final WorkCalendarService workCalendarService;
     private final Clock appClock;
 
     @Value("${app.mini-app.dev-auth-enabled:true}")
@@ -220,6 +233,127 @@ public class MiniAppController {
                 .toList());
     }
 
+    @GetMapping("/awards")
+    public ResponseEntity<AwardsView> awards(
+            @RequestHeader(value = "X-Telegram-Init-Data", required = false) String initData,
+            @RequestParam(value = "userId", required = false) Long devUserId,
+            @RequestParam(value = "month", required = false) String month
+    ) {
+        Employee requester = resolveEmployee(initData, devUserId);
+        YearMonth selectedMonth = parseMonth(month);
+        AwardService.MonthlyAwards awards = awardService.computeAwards(selectedMonth);
+        return ResponseEntity.ok(toAwardsView(awards, selectedMonth, isManager(requester)));
+    }
+
+    @GetMapping("/report/excel")
+    public ResponseEntity<byte[]> reportExcel(
+            @RequestHeader(value = "X-Telegram-Init-Data", required = false) String initData,
+            @RequestParam(value = "userId", required = false) Long devUserId,
+            @RequestParam(value = "month", required = false) String month
+    ) {
+        Employee requester = resolveEmployee(initData, devUserId);
+        if (!isManager(requester)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Manager or admin access required.");
+        }
+        YearMonth selectedMonth = parseMonth(month);
+        byte[] bytes = excelReportService.buildAllEmployeesSalaryWorkbook(selectedMonth);
+        return excelResponse(bytes, "workly-hisobot-" + selectedMonth + ".xlsx");
+    }
+
+    @GetMapping("/employees/{telegramUserId}/excel")
+    public ResponseEntity<byte[]> employeeExcel(
+            @PathVariable Long telegramUserId,
+            @RequestHeader(value = "X-Telegram-Init-Data", required = false) String initData,
+            @RequestParam(value = "userId", required = false) Long devUserId,
+            @RequestParam(value = "month", required = false) String month
+    ) {
+        Employee requester = resolveEmployee(initData, devUserId);
+        if (!isManager(requester)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Manager or admin access required.");
+        }
+        Employee target = employeeRepository.findByTelegramUserId(telegramUserId)
+                .filter(Employee::isActive)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Employee not found."));
+        YearMonth selectedMonth = parseMonth(month);
+        byte[] bytes = excelReportService.buildEmployeeSalaryWorkbook(target, selectedMonth);
+        return excelResponse(bytes, "workly-" + target.getTelegramUserId() + "-" + selectedMonth + ".xlsx");
+    }
+
+    @GetMapping("/holidays")
+    public ResponseEntity<List<HolidayView>> holidays(
+            @RequestHeader(value = "X-Telegram-Init-Data", required = false) String initData,
+            @RequestParam(value = "userId", required = false) Long devUserId
+    ) {
+        Employee requester = resolveEmployee(initData, devUserId);
+        if (!isManager(requester)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Manager or admin access required.");
+        }
+        return ResponseEntity.ok(workCalendarService.listHolidays().stream()
+                .map(h -> new HolidayView(h.getDate().toString(), h.getDescription()))
+                .toList());
+    }
+
+    @PostMapping("/holidays")
+    public ResponseEntity<HolidayView> addHoliday(
+            @RequestBody HolidayRequest body,
+            @RequestHeader(value = "X-Telegram-Init-Data", required = false) String initData,
+            @RequestParam(value = "userId", required = false) Long devUserId
+    ) {
+        Employee requester = resolveEmployee(initData, devUserId);
+        if (!isAdmin(requester)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Admin access required.");
+        }
+        LocalDate date = parseIsoDate(body == null ? null : body.date());
+        Holiday saved = workCalendarService.addHoliday(date, body == null ? null : body.description());
+        return ResponseEntity.ok(new HolidayView(saved.getDate().toString(), saved.getDescription()));
+    }
+
+    @DeleteMapping("/holidays/{date}")
+    public ResponseEntity<Void> deleteHoliday(
+            @PathVariable String date,
+            @RequestHeader(value = "X-Telegram-Init-Data", required = false) String initData,
+            @RequestParam(value = "userId", required = false) Long devUserId
+    ) {
+        Employee requester = resolveEmployee(initData, devUserId);
+        if (!isAdmin(requester)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Admin access required.");
+        }
+        workCalendarService.removeHoliday(parseIsoDate(date));
+        return ResponseEntity.noContent().build();
+    }
+
+    private AwardsView toAwardsView(AwardService.MonthlyAwards awards, YearMonth month, boolean includeMostLate) {
+        if (awards == null) {
+            return new AwardsView(month.toString(), null, null, null);
+        }
+        return new AwardsView(
+                awards.month().toString(),
+                toAwardView(awards.hardestWorker()),
+                toAwardView(awards.mostPunctual()),
+                includeMostLate ? toAwardView(awards.mostLate()) : null
+        );
+    }
+
+    private AwardView toAwardView(AwardService.Award award) {
+        return award == null ? null : new AwardView(award.fullName(), award.department(), award.value());
+    }
+
+    private ResponseEntity<byte[]> excelResponse(byte[] bytes, String filename) {
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
+                .contentType(MediaType.parseMediaType(
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .body(bytes);
+    }
+
+    private LocalDate parseIsoDate(String value) {
+        try {
+            return LocalDate.parse(value);
+        } catch (Exception e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Sana formati noto'g'ri (yyyy-MM-dd).");
+        }
+    }
+
     private Employee resolveEmployee(String initData, Long devUserId) {
         Long telegramUserId = extractTelegramUserId(initData)
                 .or(() -> devAuthEnabled ? Optional.ofNullable(devUserId) : Optional.empty())
@@ -347,6 +481,8 @@ public class MiniAppController {
                 b.penalizedDays(),
                 b.totalLateMinutes(),
                 b.totalWorkedMinutes(),
+                b.onTimeDays(),
+                b.punctualityScore(),
                 days
         );
     }
@@ -485,6 +621,8 @@ public class MiniAppController {
             int penalizedDays,
             long totalLateMinutes,
             long totalWorkedMinutes,
+            int onTimeDays,
+            int punctualityScore,
             List<SalaryDay> days
     ) {
     }
@@ -514,6 +652,18 @@ public class MiniAppController {
     }
 
     public record FeedbackRow(String createdAt, String fullName, String department, String message) {
+    }
+
+    public record AwardsView(String month, AwardView hardestWorker, AwardView mostPunctual, AwardView mostLate) {
+    }
+
+    public record AwardView(String fullName, String department, long value) {
+    }
+
+    public record HolidayView(String date, String description) {
+    }
+
+    public record HolidayRequest(String date, String description) {
     }
 
     public record TodayReport(

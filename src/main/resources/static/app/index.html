@@ -92,6 +92,14 @@
             <div id="performanceBody"></div>
         </section>
 
+        <section class="card" id="awardsCard" hidden>
+            <div class="card-head">
+                <h2>Oylik mukofotlar</h2>
+                <span class="muted" id="awardsMonth"></span>
+            </div>
+            <div id="awardsBody"></div>
+        </section>
+
         <section class="card payslip" id="payslip">
             <div class="card-head">
                 <h2>Maoshim</h2>
@@ -129,7 +137,10 @@
         <section class="card">
             <div class="card-head">
                 <h2>Bugungi report</h2>
-                <span class="muted" id="reportDate"></span>
+                <div class="head-actions">
+                    <span class="muted" id="reportDate"></span>
+                    <button id="exportReportBtn" class="btn btn-ghost btn-sm" type="button">⤓ Excel</button>
+                </div>
             </div>
 
             <div class="filter-cards" id="filterCards" role="group" aria-label="Holat bo'yicha filtr">
@@ -166,7 +177,10 @@
         <section class="card">
             <div class="card-head">
                 <h2>Xodim tarixi</h2>
-                <input id="empMonth" class="month-input" type="month">
+                <div class="head-actions">
+                    <input id="empMonth" class="month-input" type="month">
+                    <button id="exportEmpBtn" class="btn btn-ghost btn-sm" type="button">⤓ Excel</button>
+                </div>
             </div>
             <select id="empSelect" class="employee-select"></select>
             <div id="empPerformance"></div>
@@ -221,6 +235,26 @@
                     <tr><th>Vaqt</th><th>Xodim</th><th>Bo'lim</th><th>Fikr</th></tr>
                     </thead>
                     <tbody id="feedbackBody"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="card" id="holidaysCard" hidden>
+            <div class="card-head">
+                <h2>Dam olish kunlari</h2>
+                <span class="muted">Bu kunlarda kechikish hisoblanmaydi</span>
+            </div>
+            <div class="filter-bar">
+                <input id="holidayDate" type="date" aria-label="Sana">
+                <input id="holidayDesc" type="text" placeholder="Izoh (masalan: Navro'z)" aria-label="Izoh">
+                <button id="holidayAdd" class="btn btn-primary" type="button">Qo'shish</button>
+            </div>
+            <div class="table-wrap">
+                <table class="data-table">
+                    <thead>
+                    <tr><th>Sana</th><th>Izoh</th><th></th></tr>
+                    </thead>
+                    <tbody id="holidaysBody"></tbody>
                 </table>
             </div>
         </section>

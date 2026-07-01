@@ -13,7 +13,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
-import java.time.DayOfWeek;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -37,6 +36,7 @@ public class SalaryService {
     private final DepartmentSalaryRepository departmentSalaryRepository;
     private final AttendanceRepository attendanceRepository;
     private final PenaltyProperties penaltyProperties;
+    private final WorkCalendarService workCalendarService;
     private final Clock appClock;
 
     // ---- Editable base-salary configuration ------------------------------------
@@ -204,12 +204,11 @@ public class SalaryService {
         if (attendance.getArrivalTime() == null) {
             return 0;
         }
-        // Sunday is an optional off day: working is voluntary, so arrivals are never
-        // counted as late and never penalised. Returning 0 here also keeps a Sunday
-        // from consuming the month's first-late warning, since the breakdown and the
-        // check-in note both derive lateness from this method.
-        if (attendance.getWorkDate() != null
-                && attendance.getWorkDate().getDayOfWeek() == DayOfWeek.SUNDAY) {
+        // Off days (configured weekly off-days + company holidays) are penalty-free:
+        // working is voluntary, so arrivals are never counted as late and never penalised.
+        // Returning 0 here also keeps such a day from consuming the month's first-late
+        // warning, since the breakdown and the check-in note both derive lateness here.
+        if (workCalendarService.isPenaltyFreeDay(attendance.getWorkDate())) {
             return 0;
         }
         LocalTime effectiveStart = shift.getStartTime().plusMinutes(penaltyProperties.getGraceMinutes());
@@ -229,8 +228,8 @@ public class SalaryService {
 
     /**
      * Leave time used for worked-minute calculations. A missing checkout credits the
-     *      * employee up to their shift end for that day (or only up to "now" if the day is
-     *      * still in progress) instead of dropping the whole day to zero.
+     * employee up to their shift end for that day (or only up to "now" if the day is
+     * still in progress) instead of dropping the whole day to zero.
      */
     private java.time.LocalDateTime effectiveLeaveTime(Attendance attendance) {
         if (attendance.getLeaveTime() != null) {

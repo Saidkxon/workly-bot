@@ -104,6 +104,13 @@ public class DatabaseSchemaInitializer {
                 )
                 """);
 
+        jdbcTemplate.execute("""
+                CREATE TABLE IF NOT EXISTS holidays (
+                    holiday_date DATE PRIMARY KEY,
+                    description VARCHAR(255)
+                )
+                """);
+
         dropStaleEnumCheckConstraints();
     }
 
@@ -113,10 +120,10 @@ public class DatabaseSchemaInitializer {
      * column. With {@code ddl-auto: update} those constraints are created once and
      * never refreshed, so adding a new enum value (e.g. a new Shift or a new
      * AuditActionType) makes every INSERT carrying that value fail with a constraint
-     * violation. The bot then swallows the exception, and the user just sees a generic
+     * violation. The bot then swallows the exception and the user just sees a generic
      * error or no response at all.
      *
-     * <p>This codebase defines no handwritten CHECK constraints, so every CHECK
+     * <p>This codebase defines no hand-written CHECK constraints, so every CHECK
      * constraint in the public schema is one of these Hibernate enum whitelists and is
      * safe to drop. The columns stay plain VARCHAR, so any present or future enum value
      * is accepted. Runs on every boot and is idempotent: once a constraint is dropped,

@@ -14,7 +14,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
-import java.time.DayOfWeek;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -34,6 +33,7 @@ public class AttendanceService {
     private final OfficeProperties officeProperties;
     private final EarlyLeaveService earlyLeaveService;
     private final PenaltyProperties penaltyProperties;
+    private final WorkCalendarService workCalendarService;
     private final Clock appClock;
 
     @Transactional
@@ -140,9 +140,8 @@ public class AttendanceService {
         return shiftEndToday;
     }
 
-    private boolean isSunday(Attendance attendance) {
-        return attendance.getWorkDate() != null
-                && attendance.getWorkDate().getDayOfWeek() == DayOfWeek.SUNDAY;
+    private boolean isPenaltyFreeDay(Attendance attendance) {
+        return workCalendarService.isPenaltyFreeDay(attendance.getWorkDate());
     }
 
     public String calculateWorkedHours(Attendance attendance) {
@@ -160,8 +159,8 @@ public class AttendanceService {
         if (attendance.getArrivalTime() == null) {
             return 0;
         }
-        // Sunday is an optional off day — arrivals are never counted as late.
-        if (isSunday(attendance)) {
+        // Off days (weekly off-days + holidays) are penalty-free — never counted as late.
+        if (isPenaltyFreeDay(attendance)) {
             return 0;
         }
 
@@ -181,7 +180,7 @@ public class AttendanceService {
         if (attendance.getArrivalTime() == null) {
             return BotMessages.STATUS_MISSING_ARRIVAL;
         }
-        if (!isSunday(attendance)
+        if (!isPenaltyFreeDay(attendance)
                 && attendance.getArrivalTime().toLocalTime().isAfter(effectiveStart(attendance.getEmployee()))) {
             return BotMessages.STATUS_LATE;
         }
