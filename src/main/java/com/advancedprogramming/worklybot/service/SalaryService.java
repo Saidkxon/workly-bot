@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
+import java.time.DayOfWeek;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -201,6 +202,14 @@ public class SalaryService {
 
     private long lateMinutes(Attendance attendance, Shift shift) {
         if (attendance.getArrivalTime() == null) {
+            return 0;
+        }
+        // Sunday is an optional off day: working is voluntary, so arrivals are never
+        // counted as late and never penalised. Returning 0 here also keeps a Sunday
+        // from consuming the month's first-late warning, since the breakdown and the
+        // check-in note both derive lateness from this method.
+        if (attendance.getWorkDate() != null
+                && attendance.getWorkDate().getDayOfWeek() == DayOfWeek.SUNDAY) {
             return 0;
         }
         LocalTime effectiveStart = shift.getStartTime().plusMinutes(penaltyProperties.getGraceMinutes());
