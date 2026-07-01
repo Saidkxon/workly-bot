@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
+import java.time.DayOfWeek;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -114,10 +115,34 @@ public class AttendanceService {
     }
 
     public long calculateWorkedMinutes(Attendance attendance) {
-        if (attendance.getArrivalTime() == null || attendance.getLeaveTime() == null) {
+        if (attendance.getArrivalTime() == null) {
             return 0;
         }
-        return Math.max(0, Duration.between(attendance.getArrivalTime(), attendance.getLeaveTime()).toMinutes());
+        LocalDateTime end = effectiveLeaveTime(attendance);
+        return Math.max(0, Duration.between(attendance.getArrivalTime(), end).toMinutes());
+    }
+
+    /**
+     * The leave time to use for worked-time calculations. When an employee forgot to
+     * mark leaving, they are credited up to their shift end for that day (and only up to
+     * "now" if the day is still in progress), instead of losing the whole day as 0.
+     */
+    private LocalDateTime effectiveLeaveTime(Attendance attendance) {
+        if (attendance.getLeaveTime() != null) {
+            return attendance.getLeaveTime();
+        }
+        LocalDate workDate = attendance.getWorkDate();
+        LocalDateTime shiftEndToday = workDate.atTime(shiftEnd(attendance.getEmployee()));
+        LocalDateTime now = LocalDateTime.now(appClock);
+        if (workDate.equals(now.toLocalDate()) && now.isBefore(shiftEndToday)) {
+            return now; // still on the clock today — don't credit future minutes
+        }
+        return shiftEndToday;
+    }
+
+    private boolean isSunday(Attendance attendance) {
+        return attendance.getWorkDate() != null
+                && attendance.getWorkDate().getDayOfWeek() == DayOfWeek.SUNDAY;
     }
 
     public String calculateWorkedHours(Attendance attendance) {
@@ -133,6 +158,10 @@ public class AttendanceService {
     /** Late minutes counted from the employee's shift start + grace period. */
     public long calculateLateMinutes(Attendance attendance) {
         if (attendance.getArrivalTime() == null) {
+            return 0;
+        }
+        // Sunday is an optional off day — arrivals are never counted as late.
+        if (isSunday(attendance)) {
             return 0;
         }
 
@@ -152,7 +181,8 @@ public class AttendanceService {
         if (attendance.getArrivalTime() == null) {
             return BotMessages.STATUS_MISSING_ARRIVAL;
         }
-        if (attendance.getArrivalTime().toLocalTime().isAfter(effectiveStart(attendance.getEmployee()))) {
+        if (!isSunday(attendance)
+                && attendance.getArrivalTime().toLocalTime().isAfter(effectiveStart(attendance.getEmployee()))) {
             return BotMessages.STATUS_LATE;
         }
         if (attendance.getLeaveTime() == null) {

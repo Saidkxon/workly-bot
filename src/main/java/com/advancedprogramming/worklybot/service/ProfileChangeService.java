@@ -9,6 +9,7 @@ import com.advancedprogramming.worklybot.repository.EmployeeRepository;
 import com.advancedprogramming.worklybot.repository.ProfileChangeRequestRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
 import java.time.LocalDateTime;
@@ -75,6 +76,7 @@ public class ProfileChangeService {
         return sb.toString();
     }
 
+    @Transactional
     public CorrectionActionResult approve(Long requestId, Long actorTelegramUserId) {
         ProfileChangeRequest request = profileChangeRequestRepository.findById(requestId).orElse(null);
         if (request == null) {
@@ -110,6 +112,7 @@ public class ProfileChangeService {
         );
     }
 
+    @Transactional
     public CorrectionActionResult reject(Long requestId, Long actorTelegramUserId) {
         ProfileChangeRequest request = profileChangeRequestRepository.findById(requestId).orElse(null);
         if (request == null) {

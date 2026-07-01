@@ -221,10 +221,29 @@ public class SalaryService {
     }
 
     private long workedMinutes(Attendance attendance) {
-        if (attendance.getArrivalTime() == null || attendance.getLeaveTime() == null) {
+        if (attendance.getArrivalTime() == null) {
             return 0;
         }
-        return Math.max(0, Duration.between(attendance.getArrivalTime(), attendance.getLeaveTime()).toMinutes());
+        return Math.max(0, Duration.between(attendance.getArrivalTime(), effectiveLeaveTime(attendance)).toMinutes());
+    }
+
+    /**
+     * Leave time used for worked-minute calculations. A missing checkout credits the
+     *      * employee up to their shift end for that day (or only up to "now" if the day is
+     *      * still in progress) instead of dropping the whole day to zero.
+     */
+    private java.time.LocalDateTime effectiveLeaveTime(Attendance attendance) {
+        if (attendance.getLeaveTime() != null) {
+            return attendance.getLeaveTime();
+        }
+        LocalDate workDate = attendance.getWorkDate();
+        LocalTime shiftEnd = Shift.orDefault(attendance.getEmployee().getShift()).getEndTime();
+        java.time.LocalDateTime shiftEndToday = workDate.atTime(shiftEnd);
+        java.time.LocalDateTime now = java.time.LocalDateTime.now(appClock);
+        if (workDate.equals(now.toLocalDate()) && now.isBefore(shiftEndToday)) {
+            return now;
+        }
+        return shiftEndToday;
     }
 
     private LocalTime toLocalTime(java.time.LocalDateTime dateTime) {
