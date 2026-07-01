@@ -25,6 +25,7 @@ public class AwardService {
 
         Award hardestWorker = null;
         Award mostPunctual = null;
+        long mostPunctualWorked = -1; // worked minutes of the current most-punctual leader, for tie-breaks
         Award mostLate = null;
 
         for (Employee employee : employees) {
@@ -41,8 +42,9 @@ public class AwardService {
                 hardestWorker = new Award(employee.getFullName(), employee.getDepartment(), worked);
             }
             if (mostPunctual == null || late < mostPunctual.value()
-                    || (late == mostPunctual.value() && worked > mostPunctual.value())) {
+                    || (late == mostPunctual.value() && worked > mostPunctualWorked)) {
                 mostPunctual = new Award(employee.getFullName(), employee.getDepartment(), late);
+                mostPunctualWorked = worked;
             }
             if (late > 0 && (mostLate == null || late > mostLate.value())) {
                 mostLate = new Award(employee.getFullName(), employee.getDepartment(), late);
