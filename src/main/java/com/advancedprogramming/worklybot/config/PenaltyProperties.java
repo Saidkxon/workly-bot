@@ -14,7 +14,7 @@ import java.util.Set;
  *   penalty.amount-per-late-minute=3000
  *   penalty.default-qabul-salary=4000000
  *   penalty.default-base-salary=3000000
- *   penalty.off-days=SUNDAY,SATURDAY
+ *   penalty.off-days=SUNDAY, SATURDAY
  *   penalty.min-punctuality-days=10
  *
  * The per-department base salary is stored in the database (DepartmentSalary) and
@@ -29,7 +29,7 @@ public class PenaltyProperties {
     private int graceMinutes = 10;
 
     /** So'm deducted per late minute (after the first warning day of the month). */
-    private long amountPerLateMinute = 3000;
+    private long amountPerLateMinute = 1000;
 
     /** Default monthly base salary for Qabul bo'limi. */
     private long defaultQabulSalary = 4_000_000;
