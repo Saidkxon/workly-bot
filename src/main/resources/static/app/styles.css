@@ -504,13 +504,16 @@ input:focus, select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px 
 .award.gold     .award-medal { background: color-mix(in srgb, var(--gold) 20%, var(--surface)); }
 .award.punctual .award-medal { background: color-mix(in srgb, var(--accent) 18%, var(--surface)); }
 .award.late     .award-medal { background: color-mix(in srgb, var(--neg) 16%, var(--surface)); }
-.award-info { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
-.award-title { font-size: .72rem; color: var(--ink-soft); text-transform: uppercase; letter-spacing: .03em; }
-.award-name { font-family: var(--display); font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.award-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.award-title { font-size: .7rem; color: var(--ink-soft); text-transform: uppercase; letter-spacing: .04em; }
+.award-name {
+    font-family: var(--display); font-weight: 700; font-size: 1.02rem; line-height: 1.25;
+    overflow-wrap: anywhere;
+}
 .award-sub { font-size: .76rem; color: var(--ink-faint); }
 .award-stat {
-    margin-left: auto; font-family: var(--display); font-weight: 700;
-    font-variant-numeric: tabular-nums; white-space: nowrap; font-size: 1.05rem;
+    margin-top: 5px; font-family: var(--display); font-weight: 700;
+    font-variant-numeric: tabular-nums; font-size: 1.1rem;
 }
 .award.gold .award-stat { color: var(--pos); }
 .award.punctual .award-stat { color: var(--accent); }

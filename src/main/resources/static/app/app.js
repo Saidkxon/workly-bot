@@ -711,8 +711,8 @@ function awardRow(cls, medal, title, award, stat) {
             <span class="award-title">${esc(title)}</span>
             <span class="award-name">${esc(award.fullName)}</span>
             <span class="award-sub">${esc(award.department || "")}</span>
+            <span class="award-stat">${esc(stat)}</span>
         </div>
-        <span class="award-stat">${esc(stat)}</span>
     </div>`;
 }
 
