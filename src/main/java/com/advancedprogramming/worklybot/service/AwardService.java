@@ -61,8 +61,8 @@ public class AwardService {
                 qualifiedPunctual = better(qualifiedPunctual, candidate);
             }
 
-            // Most late: most total late minutes; ties break toward fewer worked minutes
-            // (more late relative to how much they were present).
+            // Latest: most total late minutes; ties break toward fewer worked minutes
+            // (later relative to how much they were present).
             if (late > 0 && (mostLate == null || late > mostLate.value()
                     || (late == mostLate.value() && worked < mostLateWorked))) {
                 mostLate = new Award(employee.getFullName(), employee.getDepartment(), late);
@@ -79,7 +79,7 @@ public class AwardService {
         return new MonthlyAwards(month, hardestWorker, mostPunctual, mostLate);
     }
 
-    /** Higher on-time rate wins; ties break by more on-time days, then fewer late minutes. */
+    /** A higher on-time rate wins; ties break by more on-time days, then fewer late minutes. */
     private Punct better(Punct current, Punct candidate) {
         if (current == null) {
             return candidate;

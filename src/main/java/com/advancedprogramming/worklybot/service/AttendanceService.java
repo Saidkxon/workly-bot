@@ -225,6 +225,12 @@ public class AttendanceService {
     }
 
     public boolean canMarkLeaving(Employee employee) {
+        // On off days (weekly off-days + holidays) work is optional, so an employee may
+        // check out at any time without waiting for the shift to end or getting early-leave
+        // approval. This avoids forcing them into the time-correction workaround on Sundays.
+        if (workCalendarService.isPenaltyFreeDay(LocalDate.now(appClock))) {
+            return true;
+        }
         LocalTime now = LocalTime.now(appClock);
         return !now.isBefore(shiftEnd(employee)) || earlyLeaveService.hasApprovedRequestForToday(employee);
     }
