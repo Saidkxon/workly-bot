@@ -51,8 +51,12 @@ public class SalaryService {
     }
 
     public long getMonthlyBase(Employee employee) {
-        if (Shift.orDefault(employee.getShift()) == Shift.LONG_DAY) {
+        Shift shift = Shift.orDefault(employee.getShift());
+        if (shift == Shift.LONG_DAY) {
             return 4_000_000L;
+        }
+        if (shift == Shift.MIDDAY) {
+            return 3_000_000L;
         }
         return getMonthlyBase(Department.fromDisplayName(employee.getDepartment()));
     }

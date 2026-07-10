@@ -6,7 +6,8 @@ public enum Shift {
 
     MORNING(LocalTime.of(8, 30), LocalTime.of(18, 0)),
     LONG_DAY(LocalTime.of(8, 30), LocalTime.of(20, 0)),
-    EVENING(LocalTime.of(14, 0), LocalTime.of(21, 0));
+    EVENING(LocalTime.of(14, 0), LocalTime.of(21, 0)),
+    MIDDAY(LocalTime.of(10, 0), LocalTime.of(19, 30));
 
     private final LocalTime startTime;
     private final LocalTime endTime;
