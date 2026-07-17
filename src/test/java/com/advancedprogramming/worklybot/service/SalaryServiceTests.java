@@ -26,6 +26,9 @@ import static org.mockito.Mockito.when;
 
 class SalaryServiceTests {
 
+    // === FIX: added mock for WorkCalendarService ===
+    private final WorkCalendarService workCalendarService = mock(WorkCalendarService.class);
+
     @Test
     void firstLateOfMonthIsWarningAndLaterLatesAreCharged() {
         DepartmentSalaryRepository departmentSalaryRepository = mock(DepartmentSalaryRepository.class);
@@ -33,7 +36,13 @@ class SalaryServiceTests {
         PenaltyProperties penalty = new PenaltyProperties(); // grace 10, 3000/min, Qabul 4,000,000
         Clock clock = Clock.fixed(Instant.parse("2026-04-15T06:00:00Z"), ZoneId.of("Asia/Tashkent"));
 
-        SalaryService salaryService = new SalaryService(departmentSalaryRepository, attendanceRepository, penalty, clock);
+        // === FIX: added workCalendarService as 4th parameter ===
+        SalaryService salaryService = new SalaryService(
+                departmentSalaryRepository,
+                attendanceRepository,
+                penalty,
+                workCalendarService, // <--- added
+                clock);
 
         Employee employee = Employee.builder()
                 .id(1L).telegramUserId(101L).chatId(201L)

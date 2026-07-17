@@ -24,6 +24,9 @@ import static org.mockito.Mockito.when;
 
 class AttendanceServiceTests {
 
+    // === FIX: added mock for WorkCalendarService ===
+    private final WorkCalendarService workCalendarService = mock(WorkCalendarService.class);
+
     private OfficeProperties office() {
         OfficeProperties officeProperties = new OfficeProperties();
         officeProperties.setLatitude(41.360470);
@@ -50,9 +53,10 @@ class AttendanceServiceTests {
     void latenessUsesShiftStartPlusGraceAndFormatsWorkedHours() {
         Clock appClock = Clock.fixed(Instant.parse("2026-04-20T04:15:00Z"), ZoneId.of("Asia/Tashkent"));
         AttendanceService attendanceService = new AttendanceService(
-                null, office(), mock(EarlyLeaveService.class), new PenaltyProperties(), appClock);
+                null, office(), mock(EarlyLeaveService.class), new PenaltyProperties(),
+                workCalendarService, // <--- added
+                appClock);
 
-        // Morning shift starts 08:30, +10 min grace -> 08:40. Arrival 09:15 -> 35 late minutes.
         Attendance attendance = Attendance.builder()
                 .employee(morningEmployee())
                 .arrivalTime(LocalDateTime.of(2026, 4, 20, 9, 15))
@@ -68,6 +72,7 @@ class AttendanceServiceTests {
     void arrivalWithinGraceIsNotLate() {
         AttendanceService attendanceService = new AttendanceService(
                 null, office(), mock(EarlyLeaveService.class), new PenaltyProperties(),
+                workCalendarService, // <--- added
                 Clock.fixed(Instant.parse("2026-04-20T04:00:00Z"), ZoneId.of("Asia/Tashkent")));
 
         Attendance attendance = Attendance.builder()
@@ -84,6 +89,7 @@ class AttendanceServiceTests {
     void workedMinutesNeverGoNegativeWhenTimesAreInvalid() {
         AttendanceService attendanceService = new AttendanceService(
                 null, office(), mock(EarlyLeaveService.class), new PenaltyProperties(),
+                workCalendarService, // <--- added
                 Clock.fixed(Instant.parse("2026-04-20T04:15:00Z"), ZoneId.of("Asia/Tashkent")));
 
         Attendance invalidAttendance = Attendance.builder()
@@ -102,6 +108,7 @@ class AttendanceServiceTests {
 
         AttendanceService attendanceService = new AttendanceService(
                 null, office(), earlyLeaveService, new PenaltyProperties(),
+                workCalendarService, // <--- added
                 Clock.fixed(Instant.parse("2026-04-20T12:00:00Z"), ZoneId.of("Asia/Tashkent")));
 
         Employee employee = morningEmployee();
@@ -119,6 +126,7 @@ class AttendanceServiceTests {
 
         AttendanceService attendanceService = new AttendanceService(
                 null, office(), earlyLeaveService, new PenaltyProperties(),
+                workCalendarService, // <--- added
                 Clock.fixed(Instant.parse("2026-04-20T12:00:00Z"), ZoneId.of("Asia/Tashkent")));
 
         assertTrue(attendanceService.canMarkLeaving(morningEmployee()));
@@ -137,6 +145,7 @@ class AttendanceServiceTests {
 
         AttendanceService attendanceService = new AttendanceService(
                 attendanceRepository, office(), mock(EarlyLeaveService.class), new PenaltyProperties(),
+                workCalendarService, // <--- added
                 Clock.fixed(Instant.parse("2026-04-20T12:00:00Z"), ZoneId.of("Asia/Tashkent")));
 
         assertTrue(attendanceService.hasOpenAttendanceForToday(employee));
