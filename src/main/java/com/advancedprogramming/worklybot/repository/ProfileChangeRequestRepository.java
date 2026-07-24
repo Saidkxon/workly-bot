@@ -13,4 +13,5 @@ public interface ProfileChangeRequestRepository extends JpaRepository<ProfileCha
     long countByStatus(CorrectionStatus status);
     List<ProfileChangeRequest> findAllByStatusOrderByCreatedAtAsc(CorrectionStatus status);
     Optional<ProfileChangeRequest> findTopByEmployeeAndStatusOrderByCreatedAtDesc(Employee employee, CorrectionStatus status);
+    void deleteAllByEmployee(Employee employee);
 }

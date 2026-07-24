@@ -18,4 +18,5 @@ public interface CorrectionRequestRepository extends JpaRepository<CorrectionReq
             LocalDate workDate,
             CorrectionStatus status
     );
+    void deleteAllByEmployee(Employee employee);
 }

@@ -20,4 +20,5 @@ public interface EarlyLeaveRequestRepository extends JpaRepository<EarlyLeaveReq
             LocalDate workDate,
             CorrectionStatus status
     );
+    void deleteAllByEmployee(Employee employee);
 }

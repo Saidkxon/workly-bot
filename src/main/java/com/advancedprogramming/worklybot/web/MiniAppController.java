@@ -19,6 +19,7 @@ import com.advancedprogramming.worklybot.repository.ProfileChangeRequestReposito
 import com.advancedprogramming.worklybot.service.AttendanceService;
 import com.advancedprogramming.worklybot.service.AuditLogService;
 import com.advancedprogramming.worklybot.service.AwardService;
+import com.advancedprogramming.worklybot.service.EmployeeService;
 import com.advancedprogramming.worklybot.service.ExcelReportService;
 import com.advancedprogramming.worklybot.service.FeedbackService;
 import com.advancedprogramming.worklybot.service.MonthlySalaryBreakdown;
@@ -71,6 +72,7 @@ public class MiniAppController {
     private final ProfileChangeRequestRepository profileChangeRequestRepository;
     private final AttendanceService attendanceService;
     private final AuditLogService auditLogService;
+    private final EmployeeService employeeService;
     private final SalaryService salaryService;
     private final FeedbackService feedbackService;
     private final AwardService awardService;
@@ -322,6 +324,44 @@ public class MiniAppController {
         return ResponseEntity.noContent().build();
     }
 
+    @GetMapping("/employees/all")
+    public ResponseEntity<List<EmployeeAdminRow>> allEmployees(
+            @RequestHeader(value = "X-Telegram-Init-Data", required = false) String initData,
+            @RequestParam(value = "userId", required = false) Long devUserId
+    ) {
+        Employee requester = resolveEmployee(initData, devUserId);
+        if (!isAdmin(requester)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Admin access required.");
+        }
+        return ResponseEntity.ok(employeeRepository.findAllByOrderByFullNameAsc()
+                .stream()
+                .map(this::toEmployeeAdminRow)
+                .toList());
+    }
+
+    @DeleteMapping("/employees/{telegramUserId}")
+    public ResponseEntity<Void> deleteEmployee(
+            @PathVariable Long telegramUserId,
+            @RequestHeader(value = "X-Telegram-Init-Data", required = false) String initData,
+            @RequestParam(value = "userId", required = false) Long devUserId
+    ) {
+        Employee requester = resolveEmployee(initData, devUserId);
+        if (!isAdmin(requester)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Admin access required.");
+        }
+        if (requester.getTelegramUserId().equals(telegramUserId)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "O'zingizni o'chira olmaysiz.");
+        }
+        Employee target = employeeRepository.findByTelegramUserId(telegramUserId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Employee not found."));
+        if (target.getRole() == Role.ADMIN) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "ADMIN foydalanuvchini o'chirib bo'lmaydi.");
+        }
+
+        employeeService.deleteEmployeeCompletely(requester, target);
+        return ResponseEntity.noContent().build();
+    }
+
     private AwardsView toAwardsView(AwardService.MonthlyAwards awards, YearMonth month, boolean includeMostLate) {
         if (awards == null) {
             return new AwardsView(month.toString(), null, null, null);
@@ -496,6 +536,17 @@ public class MiniAppController {
         );
     }
 
+    private EmployeeAdminRow toEmployeeAdminRow(Employee employee) {
+        return new EmployeeAdminRow(
+                employee.getTelegramUserId(),
+                employee.getFullName(),
+                employee.getDepartment(),
+                Shift.orDefault(employee.getShift()).getDisplayName(),
+                employee.getRole().name(),
+                employee.isActive()
+        );
+    }
+
     private AttendanceRow toAttendanceRow(Attendance attendance) {
         return new AttendanceRow(
                 attendance.getWorkDate().toString(),
@@ -639,6 +690,9 @@ public class MiniAppController {
     }
 
     public record EmployeeOption(Long telegramUserId, String fullName, String department, String role) {
+    }
+
+    public record EmployeeAdminRow(Long telegramUserId, String fullName, String department, String shift, String role, boolean active) {
     }
 
     public record ManagerSummary(int activeEmployees, int pendingRegistrations, int pendingCorrections, int pendingEarlyLeaves,

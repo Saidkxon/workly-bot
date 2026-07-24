@@ -58,4 +58,8 @@ public class FeedbackService {
     public List<FeedbackResponse> recentFeedbacks() {
         return feedbackResponseRepository.findTop30ByOrderByCreatedAtDesc();
     }
+
+    public void deleteByTelegramUserId(Long telegramUserId) {
+        feedbackResponseRepository.deleteAllByTelegramUserId(telegramUserId);
+    }
 }

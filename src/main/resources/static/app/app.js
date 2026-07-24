@@ -15,6 +15,7 @@ const state = {
     initData: telegram?.initData || "",
     devUserId: new URLSearchParams(location.search).get("userId") || localStorage.getItem("worklyDevUserId") || "",
     isManager: false,
+    selfTelegramUserId: null,
     employees: [],
     selectedEmployeeId: null,
     report: { rows: [], filter: null, query: "", dept: "all" },
@@ -44,6 +45,7 @@ const els = {
     fcArrived: $("fcArrived"), fcAbsent: $("fcAbsent"), fcLate: $("fcLate"), fcMissing: $("fcMissing"),
     reportSearch: $("reportSearch"), reportDept: $("reportDept"), reportClear: $("reportClear"), reportBody: $("reportBody"),
     empMonth: $("empMonth"), empSelect: $("empSelect"), empPerformance: $("empPerformance"), empHistoryBody: $("empHistoryBody"),
+    employeesCard: $("employeesCard"), refreshEmployeesAdmin: $("refreshEmployeesAdmin"), employeesAdminBody: $("employeesAdminBody"),
     activitiesCard: $("activitiesCard"), refreshActivities: $("refreshActivities"), activitiesBody: $("activitiesBody"),
     auditCard: $("auditCard"), refreshAudit: $("refreshAudit"), auditBody: $("auditBody"),
     feedbackCard: $("feedbackCard"), refreshFeedbacks: $("refreshFeedbacks"), feedbackBody: $("feedbackBody"),
@@ -125,6 +127,7 @@ els.empSelect.addEventListener("change", () => {
     loadEmployeeHistory();
 });
 els.empMonth.addEventListener("change", loadEmployeeHistory);
+els.refreshEmployeesAdmin.addEventListener("click", loadEmployeesAdmin);
 els.refreshActivities.addEventListener("click", loadActivities);
 els.refreshAudit.addEventListener("click", loadAuditLog);
 els.refreshFeedbacks.addEventListener("click", loadFeedbacks);
@@ -172,11 +175,13 @@ async function loadDashboard(month) {
             els.auditCard.hidden = data.employee.role !== "ADMIN";
             els.feedbackCard.hidden = data.employee.role !== "ADMIN";
             els.holidaysCard.hidden = data.employee.role !== "ADMIN";
+            els.employeesCard.hidden = data.employee.role !== "ADMIN";
             if (data.employee.role === "ADMIN") {
                 loadActivities();
                 loadAuditLog();
                 loadFeedbacks();
                 loadHolidays();
+                loadEmployeesAdmin();
             }
         } else {
             switchTab("self");
@@ -219,6 +224,10 @@ async function loadFeedbacks() {
     try { renderFeedbacks(await apiGet("/api/app/feedbacks", {})); }
     catch (error) { showToast(error.message); }
 }
+async function loadEmployeesAdmin() {
+    try { renderEmployeesAdmin(await apiGet("/api/app/employees/all", {})); }
+    catch (error) { showToast(error.message); }
+}
 
 async function loadAwards(month) {
     try { renderAwards(await apiGet("/api/app/awards", month ? { month } : {})); }
@@ -252,6 +261,22 @@ async function deleteHoliday(date) {
         await apiSend("DELETE", `/api/app/holidays/${date}`, null);
         haptic();
         loadHolidays();
+    } catch (error) {
+        showToast(error.message);
+    }
+}
+
+async function deleteEmployeeAdmin(telegramUserId, fullName) {
+    const sure = window.confirm(
+        `${fullName} butunlay o'chirilsinmi? Uning barcha davomat, so'rov va fikr yozuvlari ham o'chadi. ` +
+        `Bu amalni ortga qaytarib bo'lmaydi. Botdan qayta foydalanish uchun u qaytadan ro'yxatdan o'tishi kerak bo'ladi.`
+    );
+    if (!sure) return;
+    try {
+        await apiSend("DELETE", `/api/app/employees/${telegramUserId}`, null);
+        haptic("medium");
+        showToast(`${fullName} o'chirildi.`);
+        loadDashboard(els.selfMonth.value);
     } catch (error) {
         showToast(error.message);
     }
@@ -306,6 +331,7 @@ async function apiGet(path, params) {
 
 /* ---------------- render: profile / today ---------------- */
 function renderProfile(e) {
+    state.selfTelegramUserId = e.telegramUserId;
     els.profileAvatar.textContent = initials(e.fullName);
     els.profileName.textContent = e.fullName;
     els.profileSub.textContent = [e.department, e.shift, roleLabel(e.role)].filter(Boolean).join(" · ");
@@ -726,6 +752,28 @@ function renderHolidays(rows) {
     </tr>`).join("");
     els.holidaysBody.querySelectorAll(".holiday-del").forEach((b) =>
         b.addEventListener("click", () => deleteHoliday(b.dataset.date)));
+}
+
+/* ---------------- employees admin ---------------- */
+function renderEmployeesAdmin(rows) {
+    if (!rows || !rows.length) return emptyRow(els.employeesAdminBody, 6, "Xodimlar topilmadi.");
+    els.employeesAdminBody.innerHTML = rows.map((e) => {
+        const locked = e.role === "ADMIN" || String(e.telegramUserId) === String(state.selfTelegramUserId);
+        const activeChip = e.active ? chip("Faol", "ok") : chip("Nofaol", "warn");
+        const delBtn = locked
+            ? ""
+            : `<button class="holiday-del" type="button" data-id="${esc(e.telegramUserId)}" data-name="${esc(e.fullName)}">O'chirish</button>`;
+        return `<tr>
+            <td>${esc(e.fullName)}</td>
+            <td>${esc(e.department)}</td>
+            <td>${esc(e.shift)}</td>
+            <td>${esc(roleLabel(e.role))}</td>
+            <td>${activeChip}</td>
+            <td style="text-align:right">${delBtn}</td>
+        </tr>`;
+    }).join("");
+    els.employeesAdminBody.querySelectorAll(".holiday-del").forEach((b) =>
+        b.addEventListener("click", () => deleteEmployeeAdmin(b.dataset.id, b.dataset.name)));
 }
 
 /* ---------------- tabs ---------------- */

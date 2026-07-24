@@ -9,4 +9,5 @@ import java.util.Optional;
 public interface PendingRegistrationRepository extends JpaRepository<PendingRegistration, Long> {
     Optional<PendingRegistration> findByTelegramUserId(Long telegramUserId);
     List<PendingRegistration> findAllByOrderByCreatedAtAsc();
+    void deleteByTelegramUserId(Long telegramUserId);
 }

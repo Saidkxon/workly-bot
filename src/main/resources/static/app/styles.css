@@ -328,11 +328,12 @@ h2 { font-family: var(--display); font-size: 1.05rem; font-weight: 600; margin: 
 .ledger-row.total .lbl { color: var(--ink); font-family: var(--display); font-weight: 600; }
 .ledger-row.total .val { font-size: 1.25rem; font-weight: 700; color: var(--ink); }
 .payslip-note { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
-.chip {
+.chip { display: inline-flex; align-items: center; gap: 6px;
     font-size: .76rem; padding: 5px 10px; border-radius: 999px;
     background: var(--surface-2); color: var(--ink-soft); font-variant-numeric: tabular-nums;
 }
 .chip.warn { background: var(--accent-soft); color: var(--accent); }
+.chip.ok { background: var(--pos-soft); color: var(--pos); }
 .payslip-empty { color: var(--ink-soft); font-size: .88rem; padding: 8px 0 2px; }
 
 /* ---------- Metrics (team) ---------- */

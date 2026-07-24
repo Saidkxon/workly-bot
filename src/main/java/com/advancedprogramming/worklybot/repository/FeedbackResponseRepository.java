@@ -7,4 +7,5 @@ import java.util.List;
 
 public interface FeedbackResponseRepository extends JpaRepository<FeedbackResponse, Long> {
     List<FeedbackResponse> findTop30ByOrderByCreatedAtDesc();
+    void deleteAllByTelegramUserId(Long telegramUserId);
 }

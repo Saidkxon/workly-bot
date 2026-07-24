@@ -3,9 +3,15 @@ package com.advancedprogramming.worklybot.service;
 import com.advancedprogramming.worklybot.entity.Employee;
 import com.advancedprogramming.worklybot.entity.enums.AuditActionType;
 import com.advancedprogramming.worklybot.entity.enums.Role;
+import com.advancedprogramming.worklybot.repository.AttendanceRepository;
+import com.advancedprogramming.worklybot.repository.CorrectionRequestRepository;
+import com.advancedprogramming.worklybot.repository.EarlyLeaveRequestRepository;
 import com.advancedprogramming.worklybot.repository.EmployeeRepository;
+import com.advancedprogramming.worklybot.repository.PendingRegistrationRepository;
+import com.advancedprogramming.worklybot.repository.ProfileChangeRequestRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -15,6 +21,12 @@ public class EmployeeService {
 
     private final EmployeeRepository employeeRepository;
     private final AuditLogService auditLogService;
+    private final AttendanceRepository attendanceRepository;
+    private final CorrectionRequestRepository correctionRequestRepository;
+    private final EarlyLeaveRequestRepository earlyLeaveRequestRepository;
+    private final ProfileChangeRequestRepository profileChangeRequestRepository;
+    private final PendingRegistrationRepository pendingRegistrationRepository;
+    private final FeedbackService feedbackService;
 
     public String getAllEmployeesText() {
         List<Employee> employees = employeeRepository.findAllByOrderByFullNameAsc();
@@ -102,5 +114,35 @@ public class EmployeeService {
         auditLogService.logAction(AuditActionType.EMPLOYEE_DEACTIVATED, actor, target, "Xodim nofaol qilindi.");
 
         return "Xodim o'chirildi: " + target.getFullName();
+    }
+
+    /**
+     * Permanently removes an employee (fired/inactive) and every record tied to them:
+     * attendance history, correction/early-leave/profile-change requests, feedback,
+     * and any stale pending-registration row. Once removed, the person must go through
+     * the /register flow again from scratch if they want to use the bot.
+     * Callers (e.g. the mini-app) are responsible for permission checks (admin-only,
+     * not self, not another ADMIN) before invoking this — this method only performs
+     * the actual wipe, wrapped in a single transaction so it either fully succeeds or
+     * fully rolls back.
+     */
+    @Transactional
+    public void deleteEmployeeCompletely(Employee actor, Employee target) {
+        auditLogService.logAction(
+                AuditActionType.EMPLOYEE_DELETED,
+                actor,
+                target,
+                "Xodim butunlay o'chirildi: barcha davomat, so'rov va fikr yozuvlari bilan birga. " +
+                        "Qayta foydalanish uchun /register orqali qaytadan ro'yxatdan o'tishi kerak."
+        );
+
+        attendanceRepository.deleteAllByEmployee(target);
+        correctionRequestRepository.deleteAllByEmployee(target);
+        earlyLeaveRequestRepository.deleteAllByEmployee(target);
+        profileChangeRequestRepository.deleteAllByEmployee(target);
+        feedbackService.deleteByTelegramUserId(target.getTelegramUserId());
+        pendingRegistrationRepository.deleteByTelegramUserId(target.getTelegramUserId());
+
+        employeeRepository.delete(target);
     }
 }
