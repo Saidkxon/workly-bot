@@ -275,7 +275,7 @@ async function deleteEmployeeAdmin(telegramUserId, fullName) {
     try {
         await apiSend("DELETE", `/api/app/employees/${telegramUserId}`, null);
         haptic("medium");
-        showToast(`${fullName} o'chirildi.`);
+        showToast(`${fullName} o'chirildi.`, "success");
         loadDashboard(els.selfMonth.value);
     } catch (error) {
         showToast(error.message);
@@ -856,10 +856,11 @@ function setLoading(on) {
     els.refreshBtn.disabled = on;
 }
 let toastTimer;
-function showToast(message) {
+function showToast(message, type) {
     els.toast.hidden = false;
-    els.toast.textContent = message;
+    els.toast.textContent = type === "success" ? `✓ ${message}` : message;
+    els.toast.classList.toggle("success", type === "success");
     clearTimeout(toastTimer);
     toastTimer = setTimeout(clearToast, 4000);
 }
-function clearToast() { els.toast.hidden = true; els.toast.textContent = ""; }
+function clearToast() { els.toast.hidden = true; els.toast.textContent = ""; els.toast.classList.remove("success"); }

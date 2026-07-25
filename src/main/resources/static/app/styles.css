@@ -456,6 +456,7 @@ input:focus, select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px 
     background: var(--neg); color: #fff; padding: 11px 16px; border-radius: 12px;
     font-size: .85rem; box-shadow: var(--shadow); animation: rise .2s ease both;
 }
+.toast.success { background: var(--pos); }
 
 /* ---------- Loading (skeleton shimmer) ---------- */
 .loading .view, .loading .metrics, .loading .filter-cards { opacity: .55; }
