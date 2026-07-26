@@ -29,6 +29,7 @@ const els = {
     devAuth: $("devAuth"), devUserId: $("devUserId"), devLogin: $("devLogin"),
     tabs: $("tabs"), tabSelf: $("tabSelf"), tabTeam: $("tabTeam"),
     viewSelf: $("viewSelf"), viewTeam: $("viewTeam"),
+    teamSubtabs: $("teamSubtabs"), subtabLogs: $("subtabLogs"), subtabSettings: $("subtabSettings"),
     todayDate: $("todayDate"), timeline: $("timeline"), timelineFill: $("timelineFill"),
     timelineNow: $("timelineNow"), timelineIn: $("timelineIn"), timelineInLabel: $("timelineInLabel"),
     timelineOut: $("timelineOut"), timelineOutLabel: $("timelineOutLabel"), todayStats: $("todayStats"),
@@ -121,6 +122,12 @@ els.refreshBtn.addEventListener("click", () => {
 });
 els.tabSelf.addEventListener("click", () => { switchTab("self"); haptic(); });
 els.tabTeam.addEventListener("click", () => { switchTab("team"); haptic(); });
+els.teamSubtabs.addEventListener("click", (event) => {
+    const btn = event.target.closest(".subtab");
+    if (!btn || btn.hidden) return;
+    switchSubtab(btn.dataset.subview);
+    haptic();
+});
 els.selfMonth.addEventListener("change", () => loadDashboard(els.selfMonth.value));
 els.empSelect.addEventListener("change", () => {
     state.selectedEmployeeId = els.empSelect.value;
@@ -171,12 +178,18 @@ async function loadDashboard(month) {
             renderMetrics(data.managerSummary);
             renderEmployees(data.employees);
             setReport(data.todayReport);
-            els.activitiesCard.hidden = data.employee.role !== "ADMIN";
-            els.auditCard.hidden = data.employee.role !== "ADMIN";
-            els.feedbackCard.hidden = data.employee.role !== "ADMIN";
-            els.holidaysCard.hidden = data.employee.role !== "ADMIN";
-            els.employeesCard.hidden = data.employee.role !== "ADMIN";
-            if (data.employee.role === "ADMIN") {
+            const isAdminRole = data.employee.role === "ADMIN";
+            els.activitiesCard.hidden = !isAdminRole;
+            els.auditCard.hidden = !isAdminRole;
+            els.feedbackCard.hidden = !isAdminRole;
+            els.holidaysCard.hidden = !isAdminRole;
+            els.employeesCard.hidden = !isAdminRole;
+            els.subtabLogs.hidden = !isAdminRole;
+            els.subtabSettings.hidden = !isAdminRole;
+            if (!isAdminRole && (els.subtabLogs.classList.contains("is-active") || els.subtabSettings.classList.contains("is-active"))) {
+                switchSubtab("overview");
+            }
+            if (isAdminRole) {
                 loadActivities();
                 loadAuditLog();
                 loadFeedbacks();
@@ -787,6 +800,19 @@ function switchTab(which) {
     els.viewTeam.classList.toggle("is-active", !self);
     els.viewSelf.hidden = !self;
     els.viewTeam.hidden = self;
+}
+
+function switchSubtab(which) {
+    els.teamSubtabs.querySelectorAll(".subtab").forEach((btn) => {
+        const active = btn.dataset.subview === which;
+        btn.classList.toggle("is-active", active);
+        btn.setAttribute("aria-selected", String(active));
+    });
+    document.querySelectorAll("#viewTeam .subview").forEach((view) => {
+        const active = view.dataset.subview === which;
+        view.classList.toggle("is-active", active);
+        view.hidden = !active;
+    });
 }
 
 /* ---------------- small builders ---------------- */

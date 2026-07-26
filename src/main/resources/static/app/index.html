@@ -127,153 +127,172 @@
     <!-- ============ TEAM ============ -->
     <main class="view" id="viewTeam" role="tabpanel" hidden>
 
-        <section class="card pulse-card" id="pulseCard" hidden>
-            <div class="pulse-ring" id="pulseRing"></div>
-            <div class="pulse-legend" id="pulseLegend"></div>
-        </section>
+        <nav class="subtabs" id="teamSubtabs" role="tablist">
+            <button class="subtab is-active" id="subtabOverview" data-subview="overview" role="tab" aria-selected="true" type="button">Umumiy</button>
+            <button class="subtab" id="subtabEmployees" data-subview="employees" role="tab" aria-selected="false" type="button">Xodimlar</button>
+            <button class="subtab" id="subtabLogs" data-subview="logs" role="tab" aria-selected="false" type="button" hidden>Jurnal</button>
+            <button class="subtab" id="subtabSettings" data-subview="settings" role="tab" aria-selected="false" type="button" hidden>Sozlamalar</button>
+        </nav>
 
-        <section class="metrics" id="metrics"></section>
+        <div class="subview is-active" id="subviewOverview" data-subview="overview" role="tabpanel">
 
-        <section class="card">
-            <div class="card-head">
-                <h2>Bugungi report</h2>
-                <div class="head-actions">
-                    <span class="muted" id="reportDate"></span>
-                    <button id="exportReportBtn" class="btn btn-ghost btn-sm" type="button">⤓ Excel</button>
+            <section class="card pulse-card" id="pulseCard" hidden>
+                <div class="pulse-ring" id="pulseRing"></div>
+                <div class="pulse-legend" id="pulseLegend"></div>
+            </section>
+
+            <section class="metrics" id="metrics"></section>
+
+            <section class="card">
+                <div class="card-head">
+                    <h2>Bugungi report</h2>
+                    <div class="head-actions">
+                        <span class="muted" id="reportDate"></span>
+                        <button id="exportReportBtn" class="btn btn-ghost btn-sm" type="button">⤓ Excel</button>
+                    </div>
                 </div>
-            </div>
 
-            <div class="filter-cards" id="filterCards" role="group" aria-label="Holat bo'yicha filtr">
-                <button class="filter-card" data-filter="arrived" type="button">
-                    <span class="fc-label">Kelganlar</span><strong class="fc-value" id="fcArrived">0</strong>
-                </button>
-                <button class="filter-card" data-filter="absent" type="button">
-                    <span class="fc-label">Kelmaganlar</span><strong class="fc-value" id="fcAbsent">0</strong>
-                </button>
-                <button class="filter-card" data-filter="late" type="button">
-                    <span class="fc-label">Kechikkanlar</span><strong class="fc-value" id="fcLate">0</strong>
-                </button>
-                <button class="filter-card" data-filter="missing" type="button">
-                    <span class="fc-label">Ketishni belgilamaganlar</span><strong class="fc-value" id="fcMissing">0</strong>
-                </button>
-            </div>
-
-            <div class="filter-bar">
-                <input id="reportSearch" type="search" placeholder="Ism yoki bo'lim bo'yicha qidirish">
-                <select id="reportDept"><option value="all">Barcha bo'limlar</option></select>
-                <button id="reportClear" class="btn btn-ghost" type="button">Tozalash</button>
-            </div>
-
-            <div class="table-wrap">
-                <table class="data-table">
-                    <thead>
-                    <tr><th>Ism familiya</th><th>Bo'lim</th><th>Kelgan</th><th>Ketgan</th><th>Kechikish</th><th>Holat</th></tr>
-                    </thead>
-                    <tbody id="reportBody"></tbody>
-                </table>
-            </div>
-        </section>
-
-        <section class="card">
-            <div class="card-head">
-                <h2>Xodim tarixi</h2>
-                <div class="head-actions">
-                    <input id="empMonth" class="month-input" type="month">
-                    <button id="exportEmpBtn" class="btn btn-ghost btn-sm" type="button">⤓ Excel</button>
+                <div class="filter-cards" id="filterCards" role="group" aria-label="Holat bo'yicha filtr">
+                    <button class="filter-card" data-filter="arrived" type="button">
+                        <span class="fc-label">Kelganlar</span><strong class="fc-value" id="fcArrived">0</strong>
+                    </button>
+                    <button class="filter-card" data-filter="absent" type="button">
+                        <span class="fc-label">Kelmaganlar</span><strong class="fc-value" id="fcAbsent">0</strong>
+                    </button>
+                    <button class="filter-card" data-filter="late" type="button">
+                        <span class="fc-label">Kechikkanlar</span><strong class="fc-value" id="fcLate">0</strong>
+                    </button>
+                    <button class="filter-card" data-filter="missing" type="button">
+                        <span class="fc-label">Ketishni belgilamaganlar</span><strong class="fc-value" id="fcMissing">0</strong>
+                    </button>
                 </div>
-            </div>
-            <select id="empSelect" class="employee-select"></select>
-            <div id="empPerformance"></div>
-            <div class="table-wrap">
-                <table class="data-table">
-                    <thead>
-                    <tr><th>Sana</th><th>Kelgan</th><th>Ketgan</th><th>Ishlangan</th><th>Kechikish</th><th>Jarima</th><th>Holat</th></tr>
-                    </thead>
-                    <tbody id="empHistoryBody"></tbody>
-                </table>
-            </div>
-        </section>
 
-        <section class="card" id="employeesCard" hidden>
-            <div class="card-head">
-                <h2>Xodimlarni boshqarish</h2>
-                <button id="refreshEmployeesAdmin" class="btn btn-ghost" type="button">Yangilash</button>
-            </div>
-            <p class="hint">Xodimni o'chirish uning barcha davomat, so'rov va fikr yozuvlarini butunlay o'chiradi. Qayta foydalanish uchun u /register orqali qaytadan ro'yxatdan o'tishi kerak.</p>
-            <div class="table-wrap">
-                <table class="data-table">
-                    <thead>
-                    <tr><th>Ism familiya</th><th>Bo'lim</th><th>Smena</th><th>Rol</th><th>Holat</th><th></th></tr>
-                    </thead>
-                    <tbody id="employeesAdminBody"></tbody>
-                </table>
-            </div>
-        </section>
+                <div class="filter-bar">
+                    <input id="reportSearch" type="search" placeholder="Ism yoki bo'lim bo'yicha qidirish">
+                    <select id="reportDept"><option value="all">Barcha bo'limlar</option></select>
+                    <button id="reportClear" class="btn btn-ghost" type="button">Tozalash</button>
+                </div>
 
-        <section class="card" id="activitiesCard" hidden>
-            <div class="card-head">
-                <h2>Faoliyat</h2>
-                <button id="refreshActivities" class="btn btn-ghost" type="button">Yangilash</button>
-            </div>
-            <div class="table-wrap">
-                <table class="data-table">
-                    <thead>
-                    <tr><th>Vaqt</th><th>Xodim</th><th>Telegram ID</th><th>Amal</th></tr>
-                    </thead>
-                    <tbody id="activitiesBody"></tbody>
-                </table>
-            </div>
-        </section>
+                <div class="table-wrap">
+                    <table class="data-table">
+                        <thead>
+                        <tr><th>Ism familiya</th><th>Bo'lim</th><th>Kelgan</th><th>Ketgan</th><th>Kechikish</th><th>Holat</th></tr>
+                        </thead>
+                        <tbody id="reportBody"></tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
 
-        <section class="card" id="auditCard" hidden>
-            <div class="card-head">
-                <h2>Audit log</h2>
-                <button id="refreshAudit" class="btn btn-ghost" type="button">Yangilash</button>
-            </div>
-            <div class="table-wrap">
-                <table class="data-table">
-                    <thead>
-                    <tr><th>Vaqt</th><th>Xodim</th><th>Telegram ID</th><th>Amal</th></tr>
-                    </thead>
-                    <tbody id="auditBody"></tbody>
-                </table>
-            </div>
-        </section>
+        <div class="subview" id="subviewEmployees" data-subview="employees" role="tabpanel" hidden>
 
-        <section class="card" id="feedbackCard" hidden>
-            <div class="card-head">
-                <h2>Fikrlar</h2>
-                <button id="refreshFeedbacks" class="btn btn-ghost" type="button">Yangilash</button>
-            </div>
-            <div class="table-wrap">
-                <table class="data-table">
-                    <thead>
-                    <tr><th>Vaqt</th><th>Xodim</th><th>Bo'lim</th><th>Fikr</th></tr>
-                    </thead>
-                    <tbody id="feedbackBody"></tbody>
-                </table>
-            </div>
-        </section>
+            <section class="card">
+                <div class="card-head">
+                    <h2>Xodim tarixi</h2>
+                    <div class="head-actions">
+                        <input id="empMonth" class="month-input" type="month">
+                        <button id="exportEmpBtn" class="btn btn-ghost btn-sm" type="button">⤓ Excel</button>
+                    </div>
+                </div>
+                <select id="empSelect" class="employee-select"></select>
+                <div id="empPerformance"></div>
+                <div class="table-wrap">
+                    <table class="data-table">
+                        <thead>
+                        <tr><th>Sana</th><th>Kelgan</th><th>Ketgan</th><th>Ishlangan</th><th>Kechikish</th><th>Jarima</th><th>Holat</th></tr>
+                        </thead>
+                        <tbody id="empHistoryBody"></tbody>
+                    </table>
+                </div>
+            </section>
 
-        <section class="card" id="holidaysCard" hidden>
-            <div class="card-head">
-                <h2>Dam olish kunlari</h2>
-                <span class="muted">Bu kunlarda kechikish hisoblanmaydi</span>
-            </div>
-            <div class="filter-bar">
-                <input id="holidayDate" type="date" aria-label="Sana">
-                <input id="holidayDesc" type="text" placeholder="Izoh (masalan: Navro'z)" aria-label="Izoh">
-                <button id="holidayAdd" class="btn btn-primary" type="button">Qo'shish</button>
-            </div>
-            <div class="table-wrap">
-                <table class="data-table">
-                    <thead>
-                    <tr><th>Sana</th><th>Izoh</th><th></th></tr>
-                    </thead>
-                    <tbody id="holidaysBody"></tbody>
-                </table>
-            </div>
-        </section>
+            <section class="card" id="employeesCard" hidden>
+                <div class="card-head">
+                    <h2>Xodimlarni boshqarish</h2>
+                    <button id="refreshEmployeesAdmin" class="btn btn-ghost" type="button">Yangilash</button>
+                </div>
+                <p class="hint">Xodimni o'chirish uning barcha davomat, so'rov va fikr yozuvlarini butunlay o'chiradi. Qayta foydalanish uchun u /register orqali qaytadan ro'yxatdan o'tishi kerak.</p>
+                <div class="table-wrap">
+                    <table class="data-table">
+                        <thead>
+                        <tr><th>Ism familiya</th><th>Bo'lim</th><th>Smena</th><th>Rol</th><th>Holat</th><th></th></tr>
+                        </thead>
+                        <tbody id="employeesAdminBody"></tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+
+        <div class="subview" id="subviewLogs" data-subview="logs" role="tabpanel" hidden>
+
+            <section class="card" id="activitiesCard" hidden>
+                <div class="card-head">
+                    <h2>Faoliyat</h2>
+                    <button id="refreshActivities" class="btn btn-ghost" type="button">Yangilash</button>
+                </div>
+                <div class="table-wrap">
+                    <table class="data-table">
+                        <thead>
+                        <tr><th>Vaqt</th><th>Xodim</th><th>Telegram ID</th><th>Amal</th></tr>
+                        </thead>
+                        <tbody id="activitiesBody"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section class="card" id="auditCard" hidden>
+                <div class="card-head">
+                    <h2>Audit log</h2>
+                    <button id="refreshAudit" class="btn btn-ghost" type="button">Yangilash</button>
+                </div>
+                <div class="table-wrap">
+                    <table class="data-table">
+                        <thead>
+                        <tr><th>Vaqt</th><th>Xodim</th><th>Telegram ID</th><th>Amal</th></tr>
+                        </thead>
+                        <tbody id="auditBody"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section class="card" id="feedbackCard" hidden>
+                <div class="card-head">
+                    <h2>Fikrlar</h2>
+                    <button id="refreshFeedbacks" class="btn btn-ghost" type="button">Yangilash</button>
+                </div>
+                <div class="table-wrap">
+                    <table class="data-table">
+                        <thead>
+                        <tr><th>Vaqt</th><th>Xodim</th><th>Bo'lim</th><th>Fikr</th></tr>
+                        </thead>
+                        <tbody id="feedbackBody"></tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+
+        <div class="subview" id="subviewSettings" data-subview="settings" role="tabpanel" hidden>
+
+            <section class="card" id="holidaysCard" hidden>
+                <div class="card-head">
+                    <h2>Dam olish kunlari</h2>
+                    <span class="muted">Bu kunlarda kechikish hisoblanmaydi</span>
+                </div>
+                <div class="filter-bar">
+                    <input id="holidayDate" type="date" aria-label="Sana">
+                    <input id="holidayDesc" type="text" placeholder="Izoh (masalan: Navro'z)" aria-label="Izoh">
+                    <button id="holidayAdd" class="btn btn-primary" type="button">Qo'shish</button>
+                </div>
+                <div class="table-wrap">
+                    <table class="data-table">
+                        <thead>
+                        <tr><th>Sana</th><th>Izoh</th><th></th></tr>
+                        </thead>
+                        <tbody id="holidaysBody"></tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
     </main>
 
     <div class="toast" id="toast" hidden role="alert"></div>

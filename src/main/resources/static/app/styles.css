@@ -204,6 +204,24 @@ h2 { font-family: var(--display); font-size: 1.05rem; font-weight: 600; margin: 
 .tab:active { transform: scale(.97); }
 .tab.is-active { background: var(--surface); color: var(--ink); box-shadow: var(--shadow); }
 
+/* ---------- Sub-tabs (within Jamoa) ---------- */
+.subtabs {
+    display: flex; gap: 6px; padding: 2px 2px 4px; margin-bottom: 2px;
+    overflow-x: auto; -ms-overflow-style: none; scrollbar-width: none;
+}
+.subtabs::-webkit-scrollbar { display: none; }
+.subtab {
+    flex: 0 0 auto; border: 1px solid var(--line); background: transparent; cursor: pointer;
+    font-family: var(--display); font-weight: 600; font-size: .82rem; color: var(--ink-soft);
+    padding: 7px 14px; border-radius: 999px; transition: background .18s, color .18s, border-color .18s, transform .12s;
+}
+.subtab:active { transform: scale(.97); }
+.subtab.is-active { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+
+/* ---------- Sub-views ---------- */
+.subview { display: none; flex-direction: column; gap: 14px; }
+.subview.is-active { display: flex; }
+
 /* ---------- Views ---------- */
 .view { display: none; flex-direction: column; gap: 14px; }
 .view.is-active { display: flex; }
