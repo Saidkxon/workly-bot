@@ -482,10 +482,7 @@ function renderTestAttempts(rows) {
         BLOCKED: "Bloklangan", EXPIRED: "Vaqt tugadi",
     };
     els.testAttemptsBody.innerHTML = rows.map((a) => {
-        const canReset = a.status === "BLOCKED" || a.status === "EXPIRED";
-        const resetBtn = canReset
-            ? `<button class="holiday-del" type="button" data-id="${a.id}" data-name="${esc(a.fullName)}">Qayta ruxsat berish</button>`
-            : "";
+        const resetBtn = `<button class="holiday-del" type="button" data-id="${a.id}" data-name="${esc(a.fullName)}">Qayta ruxsat berish</button>`;
         return `<tr>
             <td>${esc(a.fullName)}</td>
             <td>${esc(a.department)}</td>
