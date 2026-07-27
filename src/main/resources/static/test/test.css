@@ -142,6 +142,7 @@ textarea.answer-input:focus { outline: none; border-color: var(--accent); }
     padding: 20px;
     z-index: 100;
 }
+.warn-overlay[hidden] { display: none; }
 .warn-box {
     background: var(--surface);
     border-radius: var(--radius);

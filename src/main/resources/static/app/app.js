@@ -170,6 +170,7 @@ els.filterCards.querySelectorAll(".filter-card").forEach((card) => {
 });
 
 loadDashboard();
+setInterval(loadMyTestLink, 20000);
 
 /* ---------------- data ---------------- */
 async function loadDashboard(month) {
