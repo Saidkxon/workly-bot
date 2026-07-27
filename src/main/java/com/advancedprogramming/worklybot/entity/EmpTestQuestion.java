@@ -5,9 +5,12 @@ import jakarta.persistence.*;
 import lombok.*;
 
 /**
- * One question in a test. For TRUE_FALSE, the correctAnswer is "TRUE"/"FALSE".
- * For SHORT_ANSWER, correctAnswer holds a comma-separated list of accepted keywords.
- * For OPEN, the correctAnswer is null — always graded manually by the admin.
+ * One question in a test.
+ * For MULTIPLE_CHOICE: optionA..optionD hold the four choices, correctAnswer holds
+ * the correct letter ("A"/"B"/"C"/"D").
+ * For TEXT: optionA..optionD are unused; correctAnswer optionally holds a
+ * comma-separated list of accepted keywords — left null/blank, it's always
+ * graded manually by the admin.
  */
 @Entity
 @Table(name = "emp_test_questions")
@@ -35,6 +38,18 @@ public class EmpTestQuestion {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private EmpTestQuestionType type;
+
+    @Column(name = "option_a", length = 500)
+    private String optionA;
+
+    @Column(name = "option_b", length = 500)
+    private String optionB;
+
+    @Column(name = "option_c", length = 500)
+    private String optionC;
+
+    @Column(name = "option_d", length = 500)
+    private String optionD;
 
     @Column(name = "correct_answer", length = 1000)
     private String correctAnswer;

@@ -74,7 +74,10 @@ public class EmpTestApiController {
     }
 
     private QuestionView toQuestionView(EmpTestQuestion question) {
-        return new QuestionView(question.getId(), question.getQuestionText(), question.getType().name());
+        return new QuestionView(
+                question.getId(), question.getQuestionText(), question.getType().name(),
+                question.getOptionA(), question.getOptionB(), question.getOptionC(), question.getOptionD()
+        );
     }
 
     private AttemptStateView toStateView(EmpTestAttempt attempt, List<QuestionView> questions) {
@@ -93,7 +96,8 @@ public class EmpTestApiController {
         );
     }
 
-    public record QuestionView(Long id, String questionText, String type) {
+    public record QuestionView(Long id, String questionText, String type,
+                               String optionA, String optionB, String optionC, String optionD) {
     }
 
     public record AttemptStateView(String status, String testTitle, Integer timerMinutes,

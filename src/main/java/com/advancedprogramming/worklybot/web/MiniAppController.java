@@ -445,6 +445,7 @@ public class MiniAppController {
         empTestService.addQuestion(
                 request.questionText(),
                 EmpTestQuestionType.valueOf(request.type()),
+                request.optionA(), request.optionB(), request.optionC(), request.optionD(),
                 request.correctAnswer(),
                 request.points()
         );
@@ -478,9 +479,46 @@ public class MiniAppController {
         return excelResponse(bytes, "test-natijalari.xlsx");
     }
 
+    @GetMapping("/test/attempts")
+    public ResponseEntity<List<TestAttemptView>> testAttempts(
+            @RequestHeader(value = "X-Telegram-Init-Data", required = false) String initData,
+            @RequestParam(value = "userId", required = false) Long devUserId
+    ) {
+        Employee requester = resolveEmployee(initData, devUserId);
+        if (!isAdmin(requester)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Admin access required.");
+        }
+        List<TestAttemptView> views = empTestService.listAttempts().stream()
+                .map(a -> new TestAttemptView(
+                        a.getId(),
+                        a.getEmployee().getFullName(),
+                        a.getEmployee().getDepartment(),
+                        a.getStatus().name(),
+                        a.getViolationCount(),
+                        a.getScore() == null ? null : a.getScore() + "/" + a.getMaxScore()
+                ))
+                .toList();
+        return ResponseEntity.ok(views);
+    }
+
+    @PostMapping("/test/attempts/{id}/reset")
+    public ResponseEntity<Void> resetTestAttempt(
+            @PathVariable Long id,
+            @RequestHeader(value = "X-Telegram-Init-Data", required = false) String initData,
+            @RequestParam(value = "userId", required = false) Long devUserId
+    ) {
+        Employee requester = resolveEmployee(initData, devUserId);
+        if (!isAdmin(requester)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Admin access required.");
+        }
+        empTestService.resetAttempt(id);
+        return ResponseEntity.noContent().build();
+    }
+
     private TestQuestionView toTestQuestionView(EmpTestQuestion question) {
         return new TestQuestionView(
                 question.getId(), question.getQuestionText(), question.getType().name(),
+                question.getOptionA(), question.getOptionB(), question.getOptionC(), question.getOptionD(),
                 question.getCorrectAnswer(), question.getPoints()
         );
     }
@@ -492,7 +530,8 @@ public class MiniAppController {
                                  String status, List<TestQuestionView> questions) {
     }
 
-    public record TestQuestionView(Long id, String questionText, String type, String correctAnswer, Integer points) {
+    public record TestQuestionView(Long id, String questionText, String type, String optionA, String optionB,
+                                   String optionC, String optionD, String correctAnswer, Integer points) {
     }
 
     public record TestConfigRequest(String title, Integer timerMinutes, Boolean visibleToAllEmployees) {
@@ -501,7 +540,12 @@ public class MiniAppController {
     public record TestStatusRequest(String status) {
     }
 
-    public record TestQuestionRequest(String questionText, String type, String correctAnswer, Integer points) {
+    public record TestQuestionRequest(String questionText, String type, String optionA, String optionB,
+                                      String optionC, String optionD, String correctAnswer, Integer points) {
+    }
+
+    public record TestAttemptView(Long id, String fullName, String department, String status,
+                                  int violationCount, String score) {
     }
 
     private AwardsView toAwardsView(AwardService.MonthlyAwards awards, YearMonth month, boolean includeMostLate) {

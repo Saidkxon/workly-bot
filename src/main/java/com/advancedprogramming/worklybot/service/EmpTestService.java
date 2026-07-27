@@ -34,9 +34,10 @@ import java.util.UUID;
 
 /**
  * Backs the standalone employee test: one active {@link EmpTest} at a time, with
- * true/false and keyword-graded short-answer questions auto-scored, open questions
- * left for manual review, a customizable per-attempt timer, and a two-strike
- * anti-cheat rule (tab/window switch) that blocks the attempt on the second violation.
+ * multiple-choice (A/B/C/D) questions fully auto-scored, free-text questions
+ * optionally keyword-graded (auto if a match is found, flagged for manual review
+ * otherwise), a customizable per-attempt timer, and a two-strike anti-cheat rule
+ * (tab/window switch) that blocks the attempt on the second violation.
  */
 @Service
 @RequiredArgsConstructor
@@ -93,7 +94,9 @@ public class EmpTestService {
     }
 
     @Transactional
-    public EmpTestQuestion addQuestion(String questionText, EmpTestQuestionType type, String correctAnswer, Integer points) {
+    public EmpTestQuestion addQuestion(String questionText, EmpTestQuestionType type, String optionA,
+                                       String optionB, String optionC, String optionD,
+                                       String correctAnswer, Integer points) {
         EmpTest test = getOrCreateCurrentTest();
         int nextOrder = (int) questionRepository.countByTest(test);
         EmpTestQuestion question = EmpTestQuestion.builder()
@@ -101,7 +104,11 @@ public class EmpTestService {
                 .orderIndex(nextOrder)
                 .questionText(questionText.trim())
                 .type(type)
-                .correctAnswer(type == EmpTestQuestionType.OPEN ? null : normalizeAnswerStorage(correctAnswer))
+                .optionA(type == EmpTestQuestionType.MULTIPLE_CHOICE ? blankToNull(optionA) : null)
+                .optionB(type == EmpTestQuestionType.MULTIPLE_CHOICE ? blankToNull(optionB) : null)
+                .optionC(type == EmpTestQuestionType.MULTIPLE_CHOICE ? blankToNull(optionC) : null)
+                .optionD(type == EmpTestQuestionType.MULTIPLE_CHOICE ? blankToNull(optionD) : null)
+                .correctAnswer(blankToNull(correctAnswer))
                 .points(points == null || points < 1 ? 1 : points)
                 .build();
         return questionRepository.save(question);
@@ -112,8 +119,10 @@ public class EmpTestService {
         questionRepository.deleteById(questionId);
     }
 
-    private String normalizeAnswerStorage(String raw) {
-        return raw == null ? null : raw.trim();
+    private String blankToNull(String raw) {
+        if (raw == null) return null;
+        String trimmed = raw.trim();
+        return trimmed.isEmpty() ? null : trimmed;
     }
 
     // ---- Employee: getting a link ---------------------------------------------
@@ -189,7 +198,8 @@ public class EmpTestService {
     }
 
     /**
-     * Grades and finalizes an attempt. answers maps questionId -> raw answer text.
+     * Grades and finalizes an attempt. answers maps questionId -> raw answer text
+     * (for MULTIPLE_CHOICE, the selected letter "A"/"B"/"C"/"D").
      */
     @Transactional
     public EmpTestAttempt submit(String token, Map<Long, String> answers) {
@@ -226,32 +236,27 @@ public class EmpTestService {
 
     /**
      * Returns true/false if auto-gradable and matched/unmatched, or null if this
-     * needs manual review (OPEN questions, or a SHORT_ANSWER with no keyword match).
+     * needs manual review (a TEXT question with no keywords, or keywords that
+     * didn't match anything the employee wrote).
      */
     private Boolean grade(EmpTestQuestion question, String rawAnswer) {
         String answer = rawAnswer == null ? "" : normalize(rawAnswer);
-        switch (question.getType()) {
-            case TRUE_FALSE -> {
-                String expected = normalize(question.getCorrectAnswer());
-                return answer.equals(expected);
-            }
-            case SHORT_ANSWER -> {
-                if (answer.isBlank()) return false;
-                String[] keywords = question.getCorrectAnswer() == null
-                        ? new String[0]
-                        : question.getCorrectAnswer().split(",");
-                for (String keyword : keywords) {
-                    String normalizedKeyword = normalize(keyword);
-                    if (!normalizedKeyword.isBlank() && answer.contains(normalizedKeyword)) {
-                        return true;
-                    }
-                }
-                return null; // no match -> flagged for manual review, not auto-failed
-            }
-            default -> {
-                return null; // OPEN -> always manual
+        if (question.getType() == EmpTestQuestionType.MULTIPLE_CHOICE) {
+            String expected = normalize(question.getCorrectAnswer());
+            return !expected.isBlank() && answer.equals(expected);
+        }
+        // TEXT
+        if (question.getCorrectAnswer() == null || question.getCorrectAnswer().isBlank()) {
+            return null; // no keywords supplied -> always manual review
+        }
+        if (answer.isBlank()) return false;
+        for (String keyword : question.getCorrectAnswer().split(",")) {
+            String normalizedKeyword = normalize(keyword);
+            if (!normalizedKeyword.isBlank() && answer.contains(normalizedKeyword)) {
+                return true;
             }
         }
+        return null; // keywords given but no match -> flagged for manual review, not auto-failed
     }
 
     private String normalize(String s) {
@@ -266,6 +271,33 @@ public class EmpTestService {
             attempt.setSubmittedAt(LocalDateTime.now(appClock));
             attemptRepository.save(attempt);
         }
+    }
+
+    // ---- Admin: attempts list + re-granting access ------------------------------
+
+    public List<EmpTestAttempt> listAttempts() {
+        return attemptRepository.findAllByTestOrderByEmployee_FullNameAsc(getOrCreateCurrentTest());
+    }
+
+    /**
+     * Resets an attempt back to NOT_STARTED so the employee can take the test again
+     * from scratch — clears violation count, block reason, timing, score, and any
+     * previously submitted answers.
+     */
+    @Transactional
+    public void resetAttempt(Long attemptId) {
+        EmpTestAttempt attempt = attemptRepository.findById(attemptId)
+                .orElseThrow(() -> new IllegalArgumentException("Urinish topilmadi."));
+        answerRepository.deleteAllByAttempt(attempt);
+        attempt.setStatus(EmpTestAttemptStatus.NOT_STARTED);
+        attempt.setViolationCount(0);
+        attempt.setBlockReason(null);
+        attempt.setStartedAt(null);
+        attempt.setDeadlineAt(null);
+        attempt.setSubmittedAt(null);
+        attempt.setScore(null);
+        attempt.setMaxScore(null);
+        attemptRepository.save(attempt);
     }
 
     // ---- Admin: results export --------------------------------------------------
@@ -308,10 +340,7 @@ public class EmpTestService {
 
                 for (EmpTestQuestion question : questions) {
                     EmpTestAnswer answer = byQuestion.get(question.getId());
-                    String text = answer == null ? "" : answer.getAnswerText();
-                    if (answer != null && answer.getCorrect() == null && question.getType() != EmpTestQuestionType.OPEN) {
-                        text = text + " (ko'rib chiqish kerak)";
-                    }
+                    String text = answer == null ? "" : formatAnswerForExcel(question, answer);
                     setCell(row, c++, text, null);
                 }
             }
@@ -325,6 +354,25 @@ public class EmpTestService {
         } catch (Exception e) {
             throw new RuntimeException("Excel yaratishda xatolik: " + e.getMessage(), e);
         }
+    }
+
+    private String formatAnswerForExcel(EmpTestQuestion question, EmpTestAnswer answer) {
+        String text = answer.getAnswerText() == null ? "" : answer.getAnswerText();
+        if (question.getType() == EmpTestQuestionType.MULTIPLE_CHOICE) {
+            String optionText = switch (text.toUpperCase()) {
+                case "A" -> question.getOptionA();
+                case "B" -> question.getOptionB();
+                case "C" -> question.getOptionC();
+                case "D" -> question.getOptionD();
+                default -> null;
+            };
+            text = text + (optionText != null ? " (" + optionText + ")" : "");
+        }
+        boolean hadKeywordsToMatch = question.getCorrectAnswer() != null && !question.getCorrectAnswer().isBlank();
+        if (answer.getCorrect() == null && hadKeywordsToMatch) {
+            text = text + " (ko'rib chiqish kerak)";
+        }
+        return text;
     }
 
     private String statusLabel(EmpTestAttempt attempt) {

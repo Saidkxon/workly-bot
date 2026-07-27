@@ -57,7 +57,10 @@ const els = {
     testVisibleAllToggle: $("testVisibleAllToggle"), testActivateBtn: $("testActivateBtn"), testCloseBtn: $("testCloseBtn"),
     testDownloadBtn: $("testDownloadBtn"), testQuestionType: $("testQuestionType"), testQuestionPoints: $("testQuestionPoints"),
     testQuestionText: $("testQuestionText"), testQuestionAnswer: $("testQuestionAnswer"),
+    testMcOptions: $("testMcOptions"), testOptionA: $("testOptionA"), testOptionB: $("testOptionB"),
+    testOptionC: $("testOptionC"), testOptionD: $("testOptionD"), testCorrectLetter: $("testCorrectLetter"),
     testAddQuestionBtn: $("testAddQuestionBtn"), testQuestionsBody: $("testQuestionsBody"),
+    testAttemptsCard: $("testAttemptsCard"), refreshTestAttempts: $("refreshTestAttempts"), testAttemptsBody: $("testAttemptsBody"),
     toast: $("toast"),
 };
 
@@ -158,6 +161,9 @@ els.testSaveConfigBtn.addEventListener("click", saveTestConfig);
 els.testActivateBtn.addEventListener("click", () => setTestStatus("ACTIVE"));
 els.testCloseBtn.addEventListener("click", () => setTestStatus("CLOSED"));
 els.testAddQuestionBtn.addEventListener("click", addTestQuestion);
+els.testQuestionType.addEventListener("change", updateTestQuestionFormVisibility);
+els.refreshTestAttempts.addEventListener("click", loadTestAttempts);
+updateTestQuestionFormVisibility();
 els.testDownloadBtn.addEventListener("click", () => {
     haptic("medium");
     downloadExcel(`/api/app/test/results.xlsx`, {}, els.testDownloadBtn);
@@ -171,6 +177,9 @@ els.filterCards.querySelectorAll(".filter-card").forEach((card) => {
 
 loadDashboard();
 setInterval(loadMyTestLink, 20000);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) loadMyTestLink(); });
+window.addEventListener("focus", loadMyTestLink);
+telegram?.onEvent?.("activated", loadMyTestLink);
 
 /* ---------------- data ---------------- */
 async function loadDashboard(month) {
@@ -215,8 +224,11 @@ async function loadDashboard(month) {
                 loadEmployeesAdmin();
                 els.testAdminCard.hidden = false;
                 loadTestAdminConfig();
+                els.testAttemptsCard.hidden = false;
+                loadTestAttempts();
             } else {
                 els.testAdminCard.hidden = true;
+                els.testAttemptsCard.hidden = true;
             }
         } else {
             switchTab("self");
@@ -361,16 +373,31 @@ function renderTestAdmin(config) {
         emptyRow(els.testQuestionsBody, 5, "Savollar qo'shilmagan.");
         return;
     }
-    const typeLabels = { TRUE_FALSE: "To'g'ri/Noto'g'ri", SHORT_ANSWER: "Qisqa javob", OPEN: "Ochiq" };
-    els.testQuestionsBody.innerHTML = config.questions.map((q) => `<tr>
-        <td>${esc(q.questionText)}</td>
-        <td>${esc(typeLabels[q.type] || q.type)}</td>
-        <td>${esc(q.correctAnswer || "—")}</td>
-        <td>${esc(String(q.points))}</td>
-        <td style="text-align:right"><button class="holiday-del" type="button" data-id="${q.id}">O'chirish</button></td>
-    </tr>`).join("");
+    const typeLabels = { MULTIPLE_CHOICE: "Variantli", TEXT: "Yozma javob" };
+    els.testQuestionsBody.innerHTML = config.questions.map((q) => {
+        let answerCell;
+        if (q.type === "MULTIPLE_CHOICE") {
+            const opts = [q.optionA, q.optionB, q.optionC, q.optionD].filter(Boolean).join(" / ");
+            answerCell = `${esc(opts)} (to'g'ri: ${esc(q.correctAnswer || "—")})`;
+        } else {
+            answerCell = q.correctAnswer ? esc(q.correctAnswer) + " (kalit so'z)" : "qo'lda tekshiriladi";
+        }
+        return `<tr>
+            <td>${esc(q.questionText)}</td>
+            <td>${esc(typeLabels[q.type] || q.type)}</td>
+            <td>${answerCell}</td>
+            <td>${esc(String(q.points))}</td>
+            <td style="text-align:right"><button class="holiday-del" type="button" data-id="${q.id}">O'chirish</button></td>
+        </tr>`;
+    }).join("");
     els.testQuestionsBody.querySelectorAll(".holiday-del").forEach((b) =>
         b.addEventListener("click", () => deleteTestQuestion(b.dataset.id)));
+}
+
+function updateTestQuestionFormVisibility() {
+    const isMc = els.testQuestionType.value === "MULTIPLE_CHOICE";
+    els.testMcOptions.hidden = !isMc;
+    els.testQuestionAnswer.hidden = isMc;
 }
 
 async function saveTestConfig() {
@@ -401,15 +428,28 @@ async function setTestStatus(status) {
 async function addTestQuestion() {
     const questionText = els.testQuestionText.value.trim();
     if (!questionText) { showToast("Savol matnini kiriting."); return; }
+    const isMc = els.testQuestionType.value === "MULTIPLE_CHOICE";
+    if (isMc && (!els.testOptionA.value.trim() || !els.testOptionB.value.trim())) {
+        showToast("Kamida A va B variantlarini kiriting.");
+        return;
+    }
     try {
         await apiSend("POST", "/api/app/test/questions", {
             questionText,
             type: els.testQuestionType.value,
-            correctAnswer: els.testQuestionAnswer.value.trim() || null,
+            optionA: isMc ? els.testOptionA.value.trim() : null,
+            optionB: isMc ? els.testOptionB.value.trim() : null,
+            optionC: isMc ? els.testOptionC.value.trim() : null,
+            optionD: isMc ? els.testOptionD.value.trim() : null,
+            correctAnswer: isMc ? els.testCorrectLetter.value : (els.testQuestionAnswer.value.trim() || null),
             points: Number(els.testQuestionPoints.value) || 1,
         });
         els.testQuestionText.value = "";
         els.testQuestionAnswer.value = "";
+        els.testOptionA.value = "";
+        els.testOptionB.value = "";
+        els.testOptionC.value = "";
+        els.testOptionD.value = "";
         haptic("medium");
         loadTestAdminConfig();
     } catch (error) {
@@ -422,6 +462,49 @@ async function deleteTestQuestion(id) {
         await apiSend("DELETE", `/api/app/test/questions/${id}`, null);
         haptic();
         loadTestAdminConfig();
+    } catch (error) {
+        showToast(error.message);
+    }
+}
+
+async function loadTestAttempts() {
+    try {
+        renderTestAttempts(await apiGet("/api/app/test/attempts", {}));
+    } catch (error) {
+        showToast(error.message);
+    }
+}
+
+function renderTestAttempts(rows) {
+    if (!rows || !rows.length) return emptyRow(els.testAttemptsBody, 6, "Hali hech kim testni boshlamagan.");
+    const statusLabels = {
+        NOT_STARTED: "Boshlamagan", IN_PROGRESS: "Jarayonda", SUBMITTED: "Yakunlangan",
+        BLOCKED: "Bloklangan", EXPIRED: "Vaqt tugadi",
+    };
+    els.testAttemptsBody.innerHTML = rows.map((a) => {
+        const canReset = a.status === "BLOCKED" || a.status === "EXPIRED";
+        const resetBtn = canReset
+            ? `<button class="holiday-del" type="button" data-id="${a.id}" data-name="${esc(a.fullName)}">Qayta ruxsat berish</button>`
+            : "";
+        return `<tr>
+            <td>${esc(a.fullName)}</td>
+            <td>${esc(a.department)}</td>
+            <td>${esc(statusLabels[a.status] || a.status)}</td>
+            <td>${esc(String(a.violationCount))}</td>
+            <td>${esc(a.score || "—")}</td>
+            <td style="text-align:right">${resetBtn}</td>
+        </tr>`;
+    }).join("");
+    els.testAttemptsBody.querySelectorAll(".holiday-del").forEach((b) =>
+        b.addEventListener("click", () => resetTestAttempt(b.dataset.id, b.dataset.name)));
+}
+
+async function resetTestAttempt(id, fullName) {
+    try {
+        await apiSend("POST", `/api/app/test/attempts/${id}/reset`, {});
+        haptic("medium");
+        showToast(`${fullName} uchun test qayta ochildi.`, "success");
+        loadTestAttempts();
     } catch (error) {
         showToast(error.message);
     }

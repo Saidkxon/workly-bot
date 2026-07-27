@@ -8,4 +8,5 @@ import java.util.List;
 
 public interface EmpTestAnswerRepository extends JpaRepository<EmpTestAnswer, Long> {
     List<EmpTestAnswer> findAllByAttempt(EmpTestAttempt attempt);
+    void deleteAllByAttempt(EmpTestAttempt attempt);
 }

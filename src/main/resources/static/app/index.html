@@ -329,14 +329,27 @@
                 <h3 class="sub-head">Savol qo'shish</h3>
                 <div class="filter-bar">
                     <select id="testQuestionType">
-                        <option value="TRUE_FALSE">To'g'ri/Noto'g'ri</option>
-                        <option value="SHORT_ANSWER">Qisqa javob (kalit so'zlar)</option>
-                        <option value="OPEN">Ochiq savol</option>
+                        <option value="MULTIPLE_CHOICE">Variantli (A/B/C/D)</option>
+                        <option value="TEXT">Yozma javob (matn)</option>
                     </select>
                     <input id="testQuestionPoints" type="number" min="1" value="1" placeholder="Ball">
                 </div>
                 <textarea id="testQuestionText" class="answer-textarea" placeholder="Savol matni"></textarea>
-                <input id="testQuestionAnswer" type="text" placeholder="TO'G'RI/NOTO'G'RI yoki kalit so'zlar (vergul bilan)">
+
+                <div id="testMcOptions">
+                    <input id="testOptionA" type="text" placeholder="A varianti">
+                    <input id="testOptionB" type="text" placeholder="B varianti">
+                    <input id="testOptionC" type="text" placeholder="C varianti">
+                    <input id="testOptionD" type="text" placeholder="D varianti">
+                    <select id="testCorrectLetter">
+                        <option value="A">To'g'ri javob: A</option>
+                        <option value="B">To'g'ri javob: B</option>
+                        <option value="C">To'g'ri javob: C</option>
+                        <option value="D">To'g'ri javob: D</option>
+                    </select>
+                </div>
+                <input id="testQuestionAnswer" type="text" placeholder="Kalit so'zlar (vergul bilan) — bo'sh qoldirilsa, qo'lda tekshiriladi" hidden>
+
                 <button id="testAddQuestionBtn" class="btn btn-primary" type="button">Qo'shish</button>
 
                 <div class="table-wrap">
@@ -345,6 +358,22 @@
                         <tr><th>Savol</th><th>Turi</th><th>Javob</th><th>Ball</th><th></th></tr>
                         </thead>
                         <tbody id="testQuestionsBody"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section class="card" id="testAttemptsCard" hidden>
+                <div class="card-head">
+                    <h2>Test holati</h2>
+                    <button id="refreshTestAttempts" class="btn btn-ghost" type="button">Yangilash</button>
+                </div>
+                <p class="hint">Bloklangan yoki vaqti tugagan xodimga qayta ruxsat berish uni testni boshqatdan boshlashiga imkon beradi.</p>
+                <div class="table-wrap">
+                    <table class="data-table">
+                        <thead>
+                        <tr><th>Ism familiya</th><th>Bo'lim</th><th>Holat</th><th>Qoidabuzarlik</th><th>Ball</th><th></th></tr>
+                        </thead>
+                        <tbody id="testAttemptsBody"></tbody>
                     </table>
                 </div>
             </section>

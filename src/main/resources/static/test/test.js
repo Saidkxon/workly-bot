@@ -40,7 +40,7 @@ function renderIntro(state) {
     els.title.textContent = state.testTitle || "Xodimlar testi";
     els.content.innerHTML = `
         <div class="intro">
-            <p>Test ${state.timerMinutes} daqiqa davom etadi. Boshlangandan so'ng, testni tark etmang yoki boshqa oyna/dasturga o'tmang — bu holat kuzatilsa va qoidabuzarlik hisoblanadi.</p>
+            <p>Test ${state.timerMinutes} daqiqa davom etadi. Boshlangandan so'ng, testni tark etmang yoki boshqa oyna/dasturga o'tmang — bu holat kuzatiladi va qoidabuzarlik hisoblanadi.</p>
             <button id="startBtn" class="btn" type="button">Testni boshlash</button>
         </div>`;
     document.getElementById("startBtn").addEventListener("click", handleStart);
@@ -57,14 +57,18 @@ function renderQuestions(state) {
     els.timer.hidden = false;
 
     const questionsHtml = state.questions.map((q, idx) => {
-        if (q.type === "TRUE_FALSE") {
+        if (q.type === "MULTIPLE_CHOICE") {
+            const options = [
+                ["A", q.optionA], ["B", q.optionB], ["C", q.optionC], ["D", q.optionD]
+            ].filter(([, text]) => text);
+            const optionsHtml = options.map(([letter, text]) => `
+                <button type="button" class="mc-btn" data-value="${letter}">
+                    <span class="mc-letter">${letter}</span>${escapeHtml(text)}
+                </button>`).join("");
             return `
                 <div class="question" data-qid="${q.id}" data-type="${q.type}">
                     <p class="q-text">${idx + 1}. ${escapeHtml(q.questionText)}</p>
-                    <div class="tf-options">
-                        <button type="button" class="tf-btn" data-value="TO'G'RI">To'g'ri</button>
-                        <button type="button" class="tf-btn" data-value="NOTO'G'RI">Noto'g'ri</button>
-                    </div>
+                    <div class="mc-options">${optionsHtml}</div>
                 </div>`;
         }
         return `
@@ -77,9 +81,9 @@ function renderQuestions(state) {
     els.content.innerHTML = `${questionsHtml}
         <div class="submit-row"><button id="submitBtn" class="btn" type="button">Yakunlash</button></div>`;
 
-    els.content.querySelectorAll(".tf-btn").forEach((btn) => {
+    els.content.querySelectorAll(".mc-btn").forEach((btn) => {
         btn.addEventListener("click", () => {
-            btn.parentElement.querySelectorAll(".tf-btn").forEach((b) => b.classList.remove("selected"));
+            btn.parentElement.querySelectorAll(".mc-btn").forEach((b) => b.classList.remove("selected"));
             btn.classList.add("selected");
         });
     });
@@ -94,8 +98,8 @@ function collectAnswers() {
     const answers = {};
     els.content.querySelectorAll(".question").forEach((q) => {
         const qid = q.dataset.qid;
-        if (q.dataset.type === "TRUE_FALSE") {
-            const selected = q.querySelector(".tf-btn.selected");
+        if (q.dataset.type === "MULTIPLE_CHOICE") {
+            const selected = q.querySelector(".mc-btn.selected");
             answers[qid] = selected ? selected.dataset.value : "";
         } else {
             const textarea = q.querySelector("textarea");
