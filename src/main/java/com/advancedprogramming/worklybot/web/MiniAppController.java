@@ -7,7 +7,11 @@ import com.advancedprogramming.worklybot.entity.Attendance;
 import com.advancedprogramming.worklybot.entity.Employee;
 import com.advancedprogramming.worklybot.entity.FeedbackResponse;
 import com.advancedprogramming.worklybot.entity.Holiday;
+import com.advancedprogramming.worklybot.entity.EmpTest;
+import com.advancedprogramming.worklybot.entity.EmpTestQuestion;
 import com.advancedprogramming.worklybot.entity.enums.CorrectionStatus;
+import com.advancedprogramming.worklybot.entity.enums.EmpTestQuestionType;
+import com.advancedprogramming.worklybot.entity.enums.EmpTestStatus;
 import com.advancedprogramming.worklybot.entity.enums.Role;
 import com.advancedprogramming.worklybot.entity.enums.Shift;
 import com.advancedprogramming.worklybot.repository.AttendanceRepository;
@@ -20,6 +24,7 @@ import com.advancedprogramming.worklybot.service.AttendanceService;
 import com.advancedprogramming.worklybot.service.AuditLogService;
 import com.advancedprogramming.worklybot.service.AwardService;
 import com.advancedprogramming.worklybot.service.EmployeeService;
+import com.advancedprogramming.worklybot.service.EmpTestService;
 import com.advancedprogramming.worklybot.service.ExcelReportService;
 import com.advancedprogramming.worklybot.service.FeedbackService;
 import com.advancedprogramming.worklybot.service.MonthlySalaryBreakdown;
@@ -78,10 +83,14 @@ public class MiniAppController {
     private final AwardService awardService;
     private final ExcelReportService excelReportService;
     private final WorkCalendarService workCalendarService;
+    private final EmpTestService empTestService;
     private final Clock appClock;
 
     @Value("${app.mini-app.dev-auth-enabled:true}")
     private boolean devAuthEnabled;
+
+    @Value("${app.base-url:}")
+    private String appBaseUrl;
 
     @GetMapping("/me")
     public ResponseEntity<DashboardResponse> me(
@@ -360,6 +369,139 @@ public class MiniAppController {
 
         employeeService.deleteEmployeeCompletely(requester, target);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/test/my-link")
+    public ResponseEntity<TestLinkView> myTestLink(
+            @RequestHeader(value = "X-Telegram-Init-Data", required = false) String initData,
+            @RequestParam(value = "userId", required = false) Long devUserId
+    ) {
+        Employee requester = resolveEmployee(initData, devUserId);
+        var attempt = empTestService.getOrCreateAttemptFor(requester);
+        if (attempt == null) {
+            return ResponseEntity.ok(new TestLinkView(false, null));
+        }
+        String url = appBaseUrl + "/test?token=" + attempt.getToken();
+        return ResponseEntity.ok(new TestLinkView(true, url));
+    }
+
+    @GetMapping("/test/config")
+    public ResponseEntity<TestConfigView> testConfig(
+            @RequestHeader(value = "X-Telegram-Init-Data", required = false) String initData,
+            @RequestParam(value = "userId", required = false) Long devUserId
+    ) {
+        Employee requester = resolveEmployee(initData, devUserId);
+        if (!isAdmin(requester)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Admin access required.");
+        }
+        EmpTest test = empTestService.getOrCreateCurrentTest();
+        List<TestQuestionView> questions = empTestService.listQuestions().stream()
+                .map(this::toTestQuestionView)
+                .toList();
+        return ResponseEntity.ok(new TestConfigView(
+                test.getTitle(), test.getTimerMinutes(), test.isVisibleToAllEmployees(),
+                test.getStatus().name(), questions
+        ));
+    }
+
+    @PostMapping("/test/config")
+    public ResponseEntity<Void> updateTestConfig(
+            @RequestHeader(value = "X-Telegram-Init-Data", required = false) String initData,
+            @RequestParam(value = "userId", required = false) Long devUserId,
+            @RequestBody TestConfigRequest request
+    ) {
+        Employee requester = resolveEmployee(initData, devUserId);
+        if (!isAdmin(requester)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Admin access required.");
+        }
+        empTestService.updateConfig(request.title(), request.timerMinutes(), request.visibleToAllEmployees());
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/test/status")
+    public ResponseEntity<Void> updateTestStatus(
+            @RequestHeader(value = "X-Telegram-Init-Data", required = false) String initData,
+            @RequestParam(value = "userId", required = false) Long devUserId,
+            @RequestBody TestStatusRequest request
+    ) {
+        Employee requester = resolveEmployee(initData, devUserId);
+        if (!isAdmin(requester)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Admin access required.");
+        }
+        empTestService.setStatus(EmpTestStatus.valueOf(request.status()));
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/test/questions")
+    public ResponseEntity<Void> addTestQuestion(
+            @RequestHeader(value = "X-Telegram-Init-Data", required = false) String initData,
+            @RequestParam(value = "userId", required = false) Long devUserId,
+            @RequestBody TestQuestionRequest request
+    ) {
+        Employee requester = resolveEmployee(initData, devUserId);
+        if (!isAdmin(requester)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Admin access required.");
+        }
+        empTestService.addQuestion(
+                request.questionText(),
+                EmpTestQuestionType.valueOf(request.type()),
+                request.correctAnswer(),
+                request.points()
+        );
+        return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/test/questions/{id}")
+    public ResponseEntity<Void> deleteTestQuestion(
+            @PathVariable Long id,
+            @RequestHeader(value = "X-Telegram-Init-Data", required = false) String initData,
+            @RequestParam(value = "userId", required = false) Long devUserId
+    ) {
+        Employee requester = resolveEmployee(initData, devUserId);
+        if (!isAdmin(requester)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Admin access required.");
+        }
+        empTestService.deleteQuestion(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/test/results.xlsx")
+    public ResponseEntity<byte[]> testResultsExcel(
+            @RequestHeader(value = "X-Telegram-Init-Data", required = false) String initData,
+            @RequestParam(value = "userId", required = false) Long devUserId
+    ) {
+        Employee requester = resolveEmployee(initData, devUserId);
+        if (!isAdmin(requester)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Admin access required.");
+        }
+        byte[] bytes = empTestService.buildResultsWorkbook();
+        return excelResponse(bytes, "test-natijalari.xlsx");
+    }
+
+    private TestQuestionView toTestQuestionView(EmpTestQuestion question) {
+        return new TestQuestionView(
+                question.getId(), question.getQuestionText(), question.getType().name(),
+                question.getCorrectAnswer(), question.getPoints()
+        );
+    }
+
+    public record TestLinkView(boolean available, String url) {
+    }
+
+    public record TestConfigView(String title, Integer timerMinutes, boolean visibleToAllEmployees,
+                                 String status, List<TestQuestionView> questions) {
+    }
+
+    public record TestQuestionView(Long id, String questionText, String type, String correctAnswer, Integer points) {
+    }
+
+    public record TestConfigRequest(String title, Integer timerMinutes, Boolean visibleToAllEmployees) {
+    }
+
+    public record TestStatusRequest(String status) {
+    }
+
+    public record TestQuestionRequest(String questionText, String type, String correctAnswer, Integer points) {
     }
 
     private AwardsView toAwardsView(AwardService.MonthlyAwards awards, YearMonth month, boolean includeMostLate) {

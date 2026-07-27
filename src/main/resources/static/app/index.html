@@ -65,6 +65,14 @@
     <!-- ============ SELF ============ -->
     <main class="view is-active" id="viewSelf" role="tabpanel">
 
+        <section class="card test-card" id="testCard" hidden>
+            <div class="card-head">
+                <h2>Test</h2>
+            </div>
+            <p class="hint">Sizga mo'ljallangan test mavjud. Testni boshlaganingizdan so'ng, boshqa oyna yoki dasturga o'tmang.</p>
+            <button id="startTestBtn" class="btn btn-primary" type="button">Testni boshlash</button>
+        </section>
+
         <section class="card today-card">
             <div class="card-head">
                 <h2>Bugun</h2>
@@ -289,6 +297,54 @@
                         <tr><th>Sana</th><th>Izoh</th><th></th></tr>
                         </thead>
                         <tbody id="holidaysBody"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section class="card" id="testAdminCard" hidden>
+                <div class="card-head">
+                    <h2>Test sozlamalari</h2>
+                    <span class="muted" id="testStatusLabel"></span>
+                </div>
+
+                <div class="filter-bar">
+                    <input id="testTitleInput" type="text" placeholder="Test sarlavhasi">
+                    <input id="testTimerInput" type="number" min="1" placeholder="Vaqt (daqiqa)">
+                    <button id="testSaveConfigBtn" class="btn btn-ghost" type="button">Saqlash</button>
+                </div>
+
+                <label class="checkbox-row">
+                    <input id="testVisibleAllToggle" type="checkbox">
+                    <span>Barcha xodimlarga ko'rinsin (o'chirilgan bo'lsa, faqat adminlar ko'radi)</span>
+                </label>
+
+                <div class="filter-bar">
+                    <button id="testActivateBtn" class="btn btn-primary" type="button">Faollashtirish</button>
+                    <button id="testCloseBtn" class="btn btn-ghost" type="button">Yopish</button>
+                    <button id="testDownloadBtn" class="btn btn-ghost" type="button">⤓ Natijalar (Excel)</button>
+                </div>
+
+                <hr class="divider">
+
+                <h3 class="sub-head">Savol qo'shish</h3>
+                <div class="filter-bar">
+                    <select id="testQuestionType">
+                        <option value="TRUE_FALSE">To'g'ri/Noto'g'ri</option>
+                        <option value="SHORT_ANSWER">Qisqa javob (kalit so'zlar)</option>
+                        <option value="OPEN">Ochiq savol</option>
+                    </select>
+                    <input id="testQuestionPoints" type="number" min="1" value="1" placeholder="Ball">
+                </div>
+                <textarea id="testQuestionText" class="answer-textarea" placeholder="Savol matni"></textarea>
+                <input id="testQuestionAnswer" type="text" placeholder="TO'G'RI/NOTO'G'RI yoki kalit so'zlar (vergul bilan)">
+                <button id="testAddQuestionBtn" class="btn btn-primary" type="button">Qo'shish</button>
+
+                <div class="table-wrap">
+                    <table class="data-table">
+                        <thead>
+                        <tr><th>Savol</th><th>Turi</th><th>Javob</th><th>Ball</th><th></th></tr>
+                        </thead>
+                        <tbody id="testQuestionsBody"></tbody>
                     </table>
                 </div>
             </section>

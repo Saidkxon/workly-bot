@@ -20,6 +20,7 @@ const state = {
     selectedEmployeeId: null,
     report: { rows: [], filter: null, query: "", dept: "all" },
     currentMonth: null,
+    testLinkUrl: null,
 };
 
 const $ = (id) => document.getElementById(id);
@@ -50,6 +51,13 @@ const els = {
     activitiesCard: $("activitiesCard"), refreshActivities: $("refreshActivities"), activitiesBody: $("activitiesBody"),
     auditCard: $("auditCard"), refreshAudit: $("refreshAudit"), auditBody: $("auditBody"),
     feedbackCard: $("feedbackCard"), refreshFeedbacks: $("refreshFeedbacks"), feedbackBody: $("feedbackBody"),
+    testCard: $("testCard"), startTestBtn: $("startTestBtn"),
+    testAdminCard: $("testAdminCard"), testStatusLabel: $("testStatusLabel"),
+    testTitleInput: $("testTitleInput"), testTimerInput: $("testTimerInput"), testSaveConfigBtn: $("testSaveConfigBtn"),
+    testVisibleAllToggle: $("testVisibleAllToggle"), testActivateBtn: $("testActivateBtn"), testCloseBtn: $("testCloseBtn"),
+    testDownloadBtn: $("testDownloadBtn"), testQuestionType: $("testQuestionType"), testQuestionPoints: $("testQuestionPoints"),
+    testQuestionText: $("testQuestionText"), testQuestionAnswer: $("testQuestionAnswer"),
+    testAddQuestionBtn: $("testAddQuestionBtn"), testQuestionsBody: $("testQuestionsBody"),
     toast: $("toast"),
 };
 
@@ -145,6 +153,15 @@ els.exportEmpBtn.addEventListener("click", () => {
     downloadExcel(`/api/app/employees/${state.selectedEmployeeId}/excel`, { month: els.empMonth.value }, els.exportEmpBtn);
 });
 els.holidayAdd.addEventListener("click", addHoliday);
+els.startTestBtn.addEventListener("click", startMyTest);
+els.testSaveConfigBtn.addEventListener("click", saveTestConfig);
+els.testActivateBtn.addEventListener("click", () => setTestStatus("ACTIVE"));
+els.testCloseBtn.addEventListener("click", () => setTestStatus("CLOSED"));
+els.testAddQuestionBtn.addEventListener("click", addTestQuestion);
+els.testDownloadBtn.addEventListener("click", () => {
+    haptic("medium");
+    downloadExcel(`/api/app/test/results.xlsx`, {}, els.testDownloadBtn);
+});
 els.reportSearch.addEventListener("input", () => { state.report.query = els.reportSearch.value.trim().toLowerCase(); renderReportRows(); });
 els.reportDept.addEventListener("change", () => { state.report.dept = els.reportDept.value; renderReportRows(); });
 els.reportClear.addEventListener("click", clearReportFilters);
@@ -195,10 +212,16 @@ async function loadDashboard(month) {
                 loadFeedbacks();
                 loadHolidays();
                 loadEmployeesAdmin();
+                els.testAdminCard.hidden = false;
+                loadTestAdminConfig();
+            } else {
+                els.testAdminCard.hidden = true;
             }
         } else {
             switchTab("self");
         }
+
+        loadMyTestLink();
     } catch (error) {
         showToast(error.message);
         if (!state.initData) els.devAuth.hidden = false;
@@ -290,6 +313,114 @@ async function deleteEmployeeAdmin(telegramUserId, fullName) {
         haptic("medium");
         showToast(`${fullName} o'chirildi.`, "success");
         loadDashboard(els.selfMonth.value);
+    } catch (error) {
+        showToast(error.message);
+    }
+}
+
+/* ---------------- test feature (employee side) ---------------- */
+async function loadMyTestLink() {
+    try {
+        const link = await apiGet("/api/app/test/my-link", {});
+        state.testLinkUrl = link.available ? link.url : null;
+        els.testCard.hidden = !link.available;
+    } catch (_) {
+        els.testCard.hidden = true;
+    }
+}
+
+function startMyTest() {
+    if (!state.testLinkUrl) return;
+    haptic("medium");
+    if (telegram?.openLink) {
+        telegram.openLink(state.testLinkUrl);
+    } else {
+        window.open(state.testLinkUrl, "_blank");
+    }
+}
+
+/* ---------------- test feature (admin side) ---------------- */
+async function loadTestAdminConfig() {
+    try {
+        const config = await apiGet("/api/app/test/config", {});
+        renderTestAdmin(config);
+    } catch (error) {
+        showToast(error.message);
+    }
+}
+
+function renderTestAdmin(config) {
+    els.testTitleInput.value = config.title || "";
+    els.testTimerInput.value = config.timerMinutes || "";
+    els.testVisibleAllToggle.checked = Boolean(config.visibleToAllEmployees);
+    const statusLabels = { DRAFT: "Qoralama", ACTIVE: "Faol", CLOSED: "Yopilgan" };
+    els.testStatusLabel.textContent = statusLabels[config.status] || config.status;
+
+    if (!config.questions || !config.questions.length) {
+        emptyRow(els.testQuestionsBody, 5, "Savollar qo'shilmagan.");
+        return;
+    }
+    const typeLabels = { TRUE_FALSE: "To'g'ri/Noto'g'ri", SHORT_ANSWER: "Qisqa javob", OPEN: "Ochiq" };
+    els.testQuestionsBody.innerHTML = config.questions.map((q) => `<tr>
+        <td>${esc(q.questionText)}</td>
+        <td>${esc(typeLabels[q.type] || q.type)}</td>
+        <td>${esc(q.correctAnswer || "—")}</td>
+        <td>${esc(String(q.points))}</td>
+        <td style="text-align:right"><button class="holiday-del" type="button" data-id="${q.id}">O'chirish</button></td>
+    </tr>`).join("");
+    els.testQuestionsBody.querySelectorAll(".holiday-del").forEach((b) =>
+        b.addEventListener("click", () => deleteTestQuestion(b.dataset.id)));
+}
+
+async function saveTestConfig() {
+    try {
+        await apiSend("POST", "/api/app/test/config", {
+            title: els.testTitleInput.value.trim(),
+            timerMinutes: Number(els.testTimerInput.value) || null,
+            visibleToAllEmployees: els.testVisibleAllToggle.checked,
+        });
+        haptic("medium");
+        showToast("Test sozlamalari saqlandi.", "success");
+        loadTestAdminConfig();
+    } catch (error) {
+        showToast(error.message);
+    }
+}
+
+async function setTestStatus(status) {
+    try {
+        await apiSend("POST", "/api/app/test/status", { status });
+        haptic("medium");
+        loadTestAdminConfig();
+    } catch (error) {
+        showToast(error.message);
+    }
+}
+
+async function addTestQuestion() {
+    const questionText = els.testQuestionText.value.trim();
+    if (!questionText) { showToast("Savol matnini kiriting."); return; }
+    try {
+        await apiSend("POST", "/api/app/test/questions", {
+            questionText,
+            type: els.testQuestionType.value,
+            correctAnswer: els.testQuestionAnswer.value.trim() || null,
+            points: Number(els.testQuestionPoints.value) || 1,
+        });
+        els.testQuestionText.value = "";
+        els.testQuestionAnswer.value = "";
+        haptic("medium");
+        loadTestAdminConfig();
+    } catch (error) {
+        showToast(error.message);
+    }
+}
+
+async function deleteTestQuestion(id) {
+    try {
+        await apiSend("DELETE", `/api/app/test/questions/${id}`, null);
+        haptic();
+        loadTestAdminConfig();
     } catch (error) {
         showToast(error.message);
     }

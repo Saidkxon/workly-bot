@@ -352,6 +352,20 @@ h2 { font-family: var(--display); font-size: 1.05rem; font-weight: 600; margin: 
 }
 .chip.warn { background: var(--accent-soft); color: var(--accent); }
 .chip.ok { background: var(--pos-soft); color: var(--pos); }
+
+/* ---------- Test feature ---------- */
+.test-card { border: 1.5px solid var(--accent); }
+.checkbox-row {
+    display: flex; align-items: center; gap: 8px; font-size: .85rem;
+    color: var(--ink-soft); margin: 10px 0; cursor: pointer;
+}
+.checkbox-row input { width: 17px; height: 17px; }
+.divider { border: 0; border-top: 1px solid var(--line); margin: 18px 0; }
+.sub-head { font-size: .95rem; margin: 0 0 10px; }
+.answer-textarea {
+    width: 100%; min-height: 64px; border-radius: 10px; border: 1px solid var(--line);
+    padding: 9px 12px; font-family: inherit; font-size: .88rem; resize: vertical; margin-bottom: 8px;
+}
 .payslip-empty { color: var(--ink-soft); font-size: .88rem; padding: 8px 0 2px; }
 
 /* ---------- Metrics (team) ---------- */
