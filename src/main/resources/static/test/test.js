@@ -40,7 +40,7 @@ function renderIntro(state) {
     els.title.textContent = state.testTitle || "Xodimlar testi";
     els.content.innerHTML = `
         <div class="intro">
-            <p>Test ${state.timerMinutes} daqiqa davom etadi. Boshlangandan so'ng, testni tark etmang yoki boshqa oyna/dasturga o'tmang — bu holat kuzatiladi va qoidabuzarlik hisoblanadi.</p>
+            <p>Test ${state.timerMinutes} daqiqa davom etadi. Boshlangandan so'ng, testni tark etmang yoki boshqa oyna/dasturga o'tmang — bu holat kuzatilsa va qoidabuzarlik hisoblanadi.</p>
             <button id="startBtn" class="btn" type="button">Testni boshlash</button>
         </div>`;
     document.getElementById("startBtn").addEventListener("click", handleStart);
