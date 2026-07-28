@@ -181,7 +181,7 @@ public class EmpTestService {
     }
 
     /**
-     * Records a tab/window-switch violation. First one is a warning; the second one
+     * Records a tab/window-switch violation. The first one is a warning; the second one
      * blocks the attempt outright and stamps it for the Excel export.
      */
     @Transactional
