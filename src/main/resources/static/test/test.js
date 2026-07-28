@@ -18,6 +18,10 @@ let cheatingGuardActive = false;
 let lastViolationAt = 0;
 let submitting = false;
 
+let allQuestions = [];
+let currentIndex = 0;
+const answersState = {}; // questionId -> answer text, persists across navigation
+
 els.warnOk.addEventListener("click", () => { els.warnOverlay.hidden = true; });
 
 async function api(method, path, body) {
@@ -40,7 +44,7 @@ function renderIntro(state) {
     els.title.textContent = state.testTitle || "Xodimlar testi";
     els.content.innerHTML = `
         <div class="intro">
-            <p>Test ${state.timerMinutes} daqiqa davom etadi. Boshlangandan so'ng, testni tark etmang yoki boshqa oyna/dasturga o'tmang — bu holat kuzatilsa, testdan bloklanasiz.</p>
+            <p>Test ${state.timerMinutes} daqiqa davom etadi. Boshlangandan so'ng, testni tark etmang yoki boshqa oyna/dasturga o'tmang — bu holat kuzatiladi va qoidabuzarlik hisoblanadi.</p>
             <button id="startBtn" class="btn" type="button">Testni boshlash</button>
         </div>`;
     document.getElementById("startBtn").addEventListener("click", handleStart);
@@ -55,58 +59,104 @@ function renderMessage(text, cssClass) {
 function renderQuestions(state) {
     els.title.textContent = state.testTitle || "Xodimlar testi";
     els.timer.hidden = false;
+    allQuestions = state.questions;
+    currentIndex = 0;
+    startCheatingGuard();
+    startTimer(state.secondsLeft);
+    renderCurrentQuestion();
+}
 
-    const questionsHtml = state.questions.map((q, idx) => {
-        if (q.type === "MULTIPLE_CHOICE") {
-            const options = [
-                ["A", q.optionA], ["B", q.optionB], ["C", q.optionC], ["D", q.optionD]
-            ].filter(([, text]) => text);
-            const optionsHtml = options.map(([letter, text]) => `
-                <button type="button" class="mc-btn" data-value="${letter}">
-                    <span class="mc-letter">${letter}</span>${escapeHtml(text)}
-                </button>`).join("");
-            return `
-                <div class="question" data-qid="${q.id}" data-type="${q.type}">
-                    <p class="q-text">${idx + 1}. ${escapeHtml(q.questionText)}</p>
-                    <div class="mc-options">${optionsHtml}</div>
-                </div>`;
-        }
-        return `
-            <div class="question" data-qid="${q.id}" data-type="${q.type}">
-                <p class="q-text">${idx + 1}. ${escapeHtml(q.questionText)}</p>
-                <textarea class="answer-input" placeholder="Javobingizni yozing..."></textarea>
-            </div>`;
+function isAnswered(question) {
+    const value = answersState[question.id];
+    return Boolean(value && value.trim());
+}
+
+function renderNavDots() {
+    return allQuestions.map((q, i) => {
+        const classes = ["nav-dot"];
+        if (i === currentIndex) classes.push("current");
+        else if (isAnswered(q)) classes.push("answered");
+        return `<button type="button" class="${classes.join(" ")}" data-idx="${i}">${i + 1}</button>`;
     }).join("");
+}
 
-    els.content.innerHTML = `${questionsHtml}
-        <div class="submit-row"><button id="submitBtn" class="btn" type="button">Yakunlash</button></div>`;
+function renderCurrentQuestion() {
+    const q = allQuestions[currentIndex];
+    const total = allQuestions.length;
+    const savedAnswer = answersState[q.id] || "";
+
+    let questionBodyHtml;
+    if (q.type === "MULTIPLE_CHOICE") {
+        const options = [
+            ["A", q.optionA], ["B", q.optionB], ["C", q.optionC], ["D", q.optionD]
+        ].filter(([, text]) => text);
+        const optionsHtml = options.map(([letter, text]) => `
+            <button type="button" class="mc-btn${letter === savedAnswer ? " selected" : ""}" data-value="${letter}">
+                <span class="mc-letter">${letter}</span>${escapeHtml(text)}
+            </button>`).join("");
+        questionBodyHtml = `<div class="mc-options">${optionsHtml}</div>`;
+    } else {
+        questionBodyHtml = `<textarea class="answer-input" placeholder="Javobingizni yozing...">${escapeHtml(savedAnswer)}</textarea>`;
+    }
+
+    els.content.innerHTML = `
+        <div class="progress-row">
+            <span class="progress-label">Savol ${currentIndex + 1} / ${total}</span>
+        </div>
+        <div class="nav-dots">${renderNavDots()}</div>
+        <div class="question" data-qid="${q.id}" data-type="${q.type}">
+            <p class="q-text">${escapeHtml(q.questionText)}</p>
+            ${questionBodyHtml}
+        </div>
+        <div class="nav-buttons">
+            <button id="prevBtn" class="btn btn-secondary" type="button" ${currentIndex === 0 ? "disabled" : ""}>Oldingi</button>
+            ${currentIndex < total - 1
+        ? `<button id="nextBtn" class="btn" type="button">Keyingi (o'tkazib yuborish)</button>`
+        : ""}
+            <button id="submitBtn" class="btn btn-primary" type="button">Yakunlash</button>
+        </div>`;
 
     els.content.querySelectorAll(".mc-btn").forEach((btn) => {
         btn.addEventListener("click", () => {
-            btn.parentElement.querySelectorAll(".mc-btn").forEach((b) => b.classList.remove("selected"));
+            els.content.querySelectorAll(".mc-btn").forEach((b) => b.classList.remove("selected"));
             btn.classList.add("selected");
+            answersState[q.id] = btn.dataset.value;
+            refreshCurrentNavDot();
         });
     });
 
-    document.getElementById("submitBtn").addEventListener("click", () => handleSubmit(false));
+    const textarea = els.content.querySelector("textarea.answer-input");
+    if (textarea) {
+        textarea.addEventListener("input", () => {
+            answersState[q.id] = textarea.value;
+            refreshCurrentNavDot();
+        });
+    }
 
-    startCheatingGuard();
-    startTimer(state.secondsLeft);
+    els.content.querySelectorAll(".nav-dot").forEach((dot) => {
+        dot.addEventListener("click", () => goToQuestion(Number(dot.dataset.idx)));
+    });
+
+    const prevBtn = document.getElementById("prevBtn");
+    if (prevBtn) prevBtn.addEventListener("click", () => goToQuestion(currentIndex - 1));
+
+    const nextBtn = document.getElementById("nextBtn");
+    if (nextBtn) nextBtn.addEventListener("click", () => goToQuestion(currentIndex + 1));
+
+    document.getElementById("submitBtn").addEventListener("click", () => handleSubmit(false));
 }
 
-function collectAnswers() {
-    const answers = {};
-    els.content.querySelectorAll(".question").forEach((q) => {
-        const qid = q.dataset.qid;
-        if (q.dataset.type === "MULTIPLE_CHOICE") {
-            const selected = q.querySelector(".mc-btn.selected");
-            answers[qid] = selected ? selected.dataset.value : "";
-        } else {
-            const textarea = q.querySelector("textarea");
-            answers[qid] = textarea ? textarea.value.trim() : "";
-        }
-    });
-    return answers;
+function refreshCurrentNavDot() {
+    const dot = els.content.querySelector(`.nav-dot[data-idx="${currentIndex}"]`);
+    if (dot && isAnswered(allQuestions[currentIndex])) {
+        dot.classList.add("answered");
+    }
+}
+
+function goToQuestion(index) {
+    if (index < 0 || index >= allQuestions.length || index === currentIndex) return;
+    currentIndex = index;
+    renderCurrentQuestion();
 }
 
 function startTimer(initialSeconds) {
@@ -186,8 +236,7 @@ async function handleSubmit(auto) {
     stopCheatingGuard();
     stopTimer();
     try {
-        const answers = collectAnswers();
-        const state = await api("POST", `/${token}/submit`, { answers });
+        const state = await api("POST", `/${token}/submit`, { answers: answersState });
         applyState(state);
     } catch (e) {
         submitting = false;

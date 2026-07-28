@@ -133,6 +133,52 @@ body {
 }
 .mc-btn.selected .mc-letter { background: rgba(255,255,255,.25); }
 
+.progress-row {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 14px;
+}
+.progress-label {
+    font-weight: 600;
+    font-size: .9rem;
+    color: var(--ink-soft);
+}
+
+.nav-dots {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+    margin-bottom: 24px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--line);
+}
+.nav-dot {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 1.5px solid var(--line);
+    background: var(--surface);
+    color: var(--ink-soft);
+    font-weight: 600;
+    font-size: .82rem;
+    cursor: pointer;
+}
+.nav-dot.answered { background: var(--pos); border-color: var(--pos); color: #fff; }
+.nav-dot.current { border-color: var(--accent); border-width: 2px; color: var(--accent); }
+.nav-dot.current.answered { color: #fff; }
+
+.nav-buttons {
+    display: flex;
+    gap: 10px;
+    justify-content: space-between;
+    margin-top: 24px;
+    flex-wrap: wrap;
+}
+.nav-buttons .btn { flex: 1 1 auto; }
+.btn-secondary { background: var(--surface-2); color: var(--ink); }
+.btn-primary { background: var(--pos); }
+
 textarea.answer-input {
     width: 100%;
     min-height: 70px;
