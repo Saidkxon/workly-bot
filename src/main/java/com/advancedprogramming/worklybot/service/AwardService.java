@@ -7,19 +7,24 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.YearMonth;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 /**
  * Computes the monthly awards: the hardest worker (most minutes worked), the most
- * punctual employee (highest on-time rate, among those with enough worked days), and
- * the most-late employee (managers/admins only).
+ * punctual employee (highest on-time rate, among those with enough worked days), the
+ * most-late employee (managers/admins only), and — beyond the single #1 in each of the
+ * first two categories — a runners-up list of the next 10 for each, for a fuller monthly
+ * shout-out.
  *
  * <p>Punctuality is rate-based ({@link MonthlySalaryBreakdown#punctualityScore()}) — the
  * same 0–100 score shown in the mini-app — so the bot and the app agree. To stop a tiny
  * flawless sample (e.g. 2 perfect days) from beating a near-perfect full month, only
- * employees who worked at least {@code penalty.min-punctuality-days} days qualify. If
- * nobody clears that bar yet (e.g. early in the month), it falls back to everyone who
- * worked, so an award is still produced.
+ * employees who worked at least {@code penalty.min-punctuality-days} days qualify for the
+ * #1 spot and rank ahead of non-qualifying employees in the runners-up list. If nobody
+ * clears that bar yet (e.g. early in the month), it falls back to everyone who worked, so
+ * an award is still produced.
  */
 @Service
 @RequiredArgsConstructor
@@ -32,12 +37,10 @@ public class AwardService {
     public MonthlyAwards computeAwards(YearMonth month) {
         List<Employee> employees = employeeRepository.findAllByActiveTrueOrderByFullNameAsc();
 
-        Award hardestWorker = null;
+        List<RankedEmployee> worked = new ArrayList<>();
+
         Award mostLate = null;
         long mostLateWorked = -1; // worked minutes of the current most-late leader, for tie-breaks
-
-        Punct qualifiedPunctual = null; // best among employees meeting the min-days threshold
-        Punct fallbackPunctual = null;  // best among everyone who worked (used only if none qualify)
 
         int minDays = penaltyProperties.getMinPunctualityDays();
 
@@ -48,57 +51,70 @@ public class AwardService {
                 continue; // only consider employees who actually worked this month
             }
 
-            long worked = breakdown.totalWorkedMinutes();
-            long late = breakdown.totalLateMinutes();
+            long workedMinutes = breakdown.totalWorkedMinutes();
+            long lateMinutes = breakdown.totalLateMinutes();
 
-            if (hardestWorker == null || worked > hardestWorker.value()) {
-                hardestWorker = new Award(employee.getFullName(), employee.getDepartment(), worked);
-            }
-
-            Punct candidate = new Punct(employee, breakdown.punctualityScore(), breakdown.onTimeDays(), late);
-            fallbackPunctual = better(fallbackPunctual, candidate);
-            if (workedDays >= minDays) {
-                qualifiedPunctual = better(qualifiedPunctual, candidate);
-            }
+            worked.add(new RankedEmployee(
+                    employee.getFullName(), employee.getDepartment(),
+                    workedMinutes, workedDays, breakdown.lateDays(), lateMinutes,
+                    breakdown.punctualityScore(), breakdown.onTimeDays(), workedDays >= minDays
+            ));
 
             // Latest: most total late minutes; ties break toward fewer worked minutes
             // (later relative to how much they were present).
-            if (late > 0 && (mostLate == null || late > mostLate.value()
-                    || (late == mostLate.value() && worked < mostLateWorked))) {
-                mostLate = new Award(employee.getFullName(), employee.getDepartment(), late);
-                mostLateWorked = worked;
+            if (lateMinutes > 0 && (mostLate == null || lateMinutes > mostLate.value()
+                    || (lateMinutes == mostLate.value() && workedMinutes < mostLateWorked))) {
+                mostLate = new Award(employee.getFullName(), employee.getDepartment(), lateMinutes);
+                mostLateWorked = workedMinutes;
             }
         }
 
-        if (hardestWorker == null) {
+        if (worked.isEmpty()) {
             return null;
         }
-        Punct chosen = qualifiedPunctual != null ? qualifiedPunctual : fallbackPunctual;
-        Award mostPunctual = chosen == null ? null
-                : new Award(chosen.employee().getFullName(), chosen.employee().getDepartment(), chosen.score());
-        return new MonthlyAwards(month, hardestWorker, mostPunctual, mostLate);
+
+        List<RankedEmployee> byWorked = worked.stream()
+                .sorted(Comparator.comparingLong(RankedEmployee::workedMinutes).reversed())
+                .toList();
+
+        List<RankedEmployee> byPunctuality = worked.stream()
+                .sorted(Comparator
+                        .comparing(RankedEmployee::qualifies).reversed()
+                        .thenComparing(Comparator.comparingInt(RankedEmployee::punctualityScore).reversed())
+                        .thenComparing(Comparator.comparingInt(RankedEmployee::onTimeDays).reversed())
+                        .thenComparingLong(RankedEmployee::lateMinutes))
+                .toList();
+
+        Award hardestWorker = toAward(byWorked.get(0));
+        Award mostPunctual = toAward(byPunctuality.get(0));
+
+        List<AwardListEntry> topWorked = byWorked.stream().skip(1).limit(10).map(this::toListEntry).toList();
+        List<AwardListEntry> topPunctual = byPunctuality.stream().skip(1).limit(10).map(this::toListEntry).toList();
+
+        return new MonthlyAwards(month, hardestWorker, mostPunctual, mostLate, topWorked, topPunctual);
     }
 
-    /** A higher on-time rate wins; ties break by more on-time days, then fewer late minutes. */
-    private Punct better(Punct current, Punct candidate) {
-        if (current == null) {
-            return candidate;
-        }
-        if (candidate.score() != current.score()) {
-            return candidate.score() > current.score() ? candidate : current;
-        }
-        if (candidate.onTimeDays() != current.onTimeDays()) {
-            return candidate.onTimeDays() > current.onTimeDays() ? candidate : current;
-        }
-        return candidate.late() < current.late() ? candidate : current;
+    private Award toAward(RankedEmployee r) {
+        return new Award(r.fullName(), r.department(), r.workedMinutes());
     }
 
-    private record Punct(Employee employee, int score, int onTimeDays, long late) {
+    private AwardListEntry toListEntry(RankedEmployee r) {
+        return new AwardListEntry(r.fullName(), r.department(), r.workedMinutes(), r.workedDays(), r.lateDays(), r.lateMinutes());
+    }
+
+    private record RankedEmployee(String fullName, String department, long workedMinutes, int workedDays,
+                                  int lateDays, long lateMinutes, int punctualityScore, int onTimeDays,
+                                  boolean qualifies) {
     }
 
     public record Award(String fullName, String department, long value) {
     }
 
-    public record MonthlyAwards(YearMonth month, Award hardestWorker, Award mostPunctual, Award mostLate) {
+    public record AwardListEntry(String fullName, String department, long workedMinutes, int workedDays,
+                                 int lateDays, long lateMinutes) {
+    }
+
+    public record MonthlyAwards(YearMonth month, Award hardestWorker, Award mostPunctual, Award mostLate,
+                                List<AwardListEntry> topWorked, List<AwardListEntry> topPunctual) {
     }
 }

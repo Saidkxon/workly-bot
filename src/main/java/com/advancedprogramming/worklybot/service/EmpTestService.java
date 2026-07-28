@@ -27,10 +27,14 @@ import org.springframework.transaction.annotation.Transactional;
 import java.io.ByteArrayOutputStream;
 import java.time.Clock;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * Backs the standalone employee test: one active {@link EmpTest} at a time, with
@@ -148,6 +152,7 @@ public class EmpTestService {
                     .token(UUID.randomUUID().toString().replace("-", ""))
                     .status(EmpTestAttemptStatus.NOT_STARTED)
                     .violationCount(0)
+                    .questionOrder(shuffledOrder(test))
                     .build();
             return attemptRepository.save(attempt);
         });
@@ -297,7 +302,48 @@ public class EmpTestService {
         attempt.setSubmittedAt(null);
         attempt.setScore(null);
         attempt.setMaxScore(null);
+        attempt.setQuestionOrder(shuffledOrder(attempt.getTest()));
         attemptRepository.save(attempt);
+    }
+
+    // ---- Per-employee question order (anti-collusion) ---------------------------
+
+    private String shuffledOrder(EmpTest test) {
+        List<Long> ids = questionRepository.findAllByTestOrderByOrderIndexAsc(test).stream()
+                .map(EmpTestQuestion::getId)
+                .collect(Collectors.toCollection(ArrayList::new));
+        Collections.shuffle(ids);
+        return ids.stream().map(String::valueOf).collect(Collectors.joining(","));
+    }
+
+    /**
+     * Resolves the question list in the order this specific employee should see it.
+     * Self-heals attempts created before this feature existed (null questionOrder)
+     * by generating and persisting one on first access. Any question added after
+     * the order was generated is appended at the end (canonical order); any
+     * question removed since is simply skipped.
+     */
+    @Transactional
+    public List<EmpTestQuestion> orderedQuestionsForAttempt(EmpTestAttempt attempt) {
+        List<EmpTestQuestion> canonical = questionRepository.findAllByTestOrderByOrderIndexAsc(attempt.getTest());
+        if (attempt.getQuestionOrder() == null || attempt.getQuestionOrder().isBlank()) {
+            attempt.setQuestionOrder(shuffledOrder(attempt.getTest()));
+            attemptRepository.save(attempt);
+        }
+
+        Map<Long, EmpTestQuestion> byId = new LinkedHashMap<>();
+        for (EmpTestQuestion q : canonical) {
+            byId.put(q.getId(), q);
+        }
+
+        List<EmpTestQuestion> ordered = new ArrayList<>();
+        for (String idStr : attempt.getQuestionOrder().split(",")) {
+            if (idStr.isBlank()) continue;
+            EmpTestQuestion q = byId.remove(Long.valueOf(idStr.trim()));
+            if (q != null) ordered.add(q);
+        }
+        ordered.addAll(byId.values()); // any question added since the order was generated
+        return ordered;
     }
 
     // ---- Admin: results export --------------------------------------------------

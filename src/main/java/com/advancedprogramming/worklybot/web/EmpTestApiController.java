@@ -3,7 +3,7 @@ package com.advancedprogramming.worklybot.web;
 import com.advancedprogramming.worklybot.entity.EmpTestAttempt;
 import com.advancedprogramming.worklybot.entity.EmpTestQuestion;
 import com.advancedprogramming.worklybot.entity.enums.EmpTestAttemptStatus;
-import com.advancedprogramming.worklybot.repository.EmpTestQuestionRepository;
+import com.advancedprogramming.worklybot.entity.enums.EmpTestStatus;
 import com.advancedprogramming.worklybot.service.EmpTestService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -29,15 +29,17 @@ import java.util.Map;
 public class EmpTestApiController {
 
     private final EmpTestService empTestService;
-    private final EmpTestQuestionRepository questionRepository;
     private final Clock appClock;
 
     @GetMapping("/{token}")
     public ResponseEntity<AttemptStateView> getState(@PathVariable String token) {
         EmpTestAttempt attempt = fetchOrNotFound(token);
+        if (isUnavailable(attempt)) {
+            return ResponseEntity.ok(unavailableView(attempt));
+        }
         List<QuestionView> questions = attempt.getStatus() == EmpTestAttemptStatus.NOT_STARTED
                 ? List.of()
-                : questionRepository.findAllByTestOrderByOrderIndexAsc(attempt.getTest()).stream()
+                : empTestService.orderedQuestionsForAttempt(attempt).stream()
                 .map(this::toQuestionView)
                 .toList();
         return ResponseEntity.ok(toStateView(attempt, questions));
@@ -45,8 +47,12 @@ public class EmpTestApiController {
 
     @PostMapping("/{token}/start")
     public ResponseEntity<AttemptStateView> start(@PathVariable String token) {
+        EmpTestAttempt beforeStart = fetchOrNotFound(token);
+        if (isUnavailable(beforeStart)) {
+            return ResponseEntity.ok(unavailableView(beforeStart));
+        }
         EmpTestAttempt attempt = empTestService.startAttempt(token);
-        List<QuestionView> questions = questionRepository.findAllByTestOrderByOrderIndexAsc(attempt.getTest()).stream()
+        List<QuestionView> questions = empTestService.orderedQuestionsForAttempt(attempt).stream()
                 .map(this::toQuestionView)
                 .toList();
         return ResponseEntity.ok(toStateView(attempt, questions));
@@ -63,6 +69,16 @@ public class EmpTestApiController {
         Map<Long, String> answers = request.answers() == null ? Map.of() : request.answers();
         EmpTestAttempt attempt = empTestService.submit(token, answers);
         return ResponseEntity.ok(toStateView(attempt, List.of()));
+    }
+
+    private boolean isUnavailable(EmpTestAttempt attempt) {
+        boolean stillOpenForThisAttempt = attempt.getStatus() == EmpTestAttemptStatus.NOT_STARTED
+                || attempt.getStatus() == EmpTestAttemptStatus.IN_PROGRESS;
+        return stillOpenForThisAttempt && attempt.getTest().getStatus() != EmpTestStatus.ACTIVE;
+    }
+
+    private AttemptStateView unavailableView(EmpTestAttempt attempt) {
+        return new AttemptStateView("UNAVAILABLE", attempt.getTest().getTitle(), null, null, 0, List.of());
     }
 
     private EmpTestAttempt fetchOrNotFound(String token) {

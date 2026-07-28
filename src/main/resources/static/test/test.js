@@ -212,6 +212,9 @@ function applyState(state) {
         case "EXPIRED":
             renderMessage("Test vaqti tugadi.", "");
             break;
+        case "UNAVAILABLE":
+            renderMessage("Test hozircha mavjud emas.", "");
+            break;
         default:
             renderError("Noma'lum holat.");
     }

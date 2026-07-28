@@ -65,8 +65,29 @@ public class ReminderService {
         TelegramClient client = newClient();
 
         String publicMessage = buildPublicAwardMessage(awards);
-        for (Employee employee : employeeRepository.findAllByActiveTrue()) {
+        List<Employee> activeEmployees = employeeRepository.findAllByActiveTrue();
+        for (Employee employee : activeEmployees) {
             send(employee.getChatId(), publicMessage, client);
+        }
+
+        if (!awards.topWorked().isEmpty()) {
+            String workedListMessage = buildTopListMessage(
+                    "💪 " + awards.month() + " oyining eng samarali 10 xodimlari!",
+                    awards.topWorked()
+            );
+            for (Employee employee : activeEmployees) {
+                send(employee.getChatId(), workedListMessage, client);
+            }
+        }
+
+        if (!awards.topPunctual().isEmpty()) {
+            String punctualListMessage = buildTopListMessage(
+                    "⏱ " + awards.month() + " oyining eng intizomli 10 xodimlari!",
+                    awards.topPunctual()
+            );
+            for (Employee employee : activeEmployees) {
+                send(employee.getChatId(), punctualListMessage, client);
+            }
         }
 
         if (awards.mostLate() != null) {
@@ -91,6 +112,23 @@ public class ReminderService {
                     .append(" (").append(awards.mostPunctual().department()).append(").\n\n");
         }
         sb.append("Tabriklaymiz ularni! 🎉 va kelgusi oyda hammaga omad tilaymiz. Samaradorligingiz uchun rahmat :)");
+        return sb.toString();
+    }
+
+    private String buildTopListMessage(String title, List<AwardService.AwardListEntry> entries) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(title).append("\n\n");
+        int rank = 1;
+        for (AwardService.AwardListEntry entry : entries) {
+            sb.append(rank++).append(". ").append(entry.fullName())
+                    .append(" (").append(entry.department()).append("), ")
+                    .append("ishlangan vaqt: ").append(SalaryService.formatMinutes(entry.workedMinutes())).append(", ")
+                    .append("ishlagan kunlar: ").append(entry.workedDays()).append(", ")
+                    .append("kechikkan kunlar: ").append(entry.lateDays()).append(", ")
+                    .append("kechikish: ").append(SalaryService.formatMinutes(entry.lateMinutes()))
+                    .append(".\n");
+        }
+        sb.append("\nTabriklaymiz va kelgusi oyda ham har birlaringizga omad tilaymiz! 🎉");
         return sb.toString();
     }
 

@@ -58,4 +58,11 @@ public class EmpTestAttempt {
 
     @Column(name = "max_score")
     private Integer maxScore;
+
+    /** Comma-separated question IDs in the order shown to this employee (shuffled
+     *  once per attempt so different employees see a different order, but it stays
+     *  consistent for that employee across reloads). Null for attempts created
+     *  before this feature existed — handled with a fallback in EmpTestService. */
+    @Column(name = "question_order", length = 2000)
+    private String questionOrder;
 }
