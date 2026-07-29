@@ -22,9 +22,11 @@ import java.util.List;
  * same 0–100 score shown in the mini-app — so the bot and the app agree. To stop a tiny
  * flawless sample (e.g. 2 perfect days) from beating a near-perfect full month, only
  * employees who worked at least {@code penalty.min-punctuality-days} days qualify for the
- * #1 spot and rank ahead of non-qualifying employees in the runners-up list. If nobody
- * clears that bar yet (e.g. early in the month), it falls back to everyone who worked, so
- * an award is still produced.
+ * #1 spot and rank ahead of non-qualifying employees in the runners-up list. The "most
+ * worked" award has the same kind of floor ({@code penalty.min-worked-award-days}), so a
+ * handful of unusually long shifts can't out-rank someone who worked most of the month. If
+ * nobody clears the relevant bar yet (e.g. early in the month), it falls back to everyone
+ * who worked, so an award is still produced.
  */
 @Service
 @RequiredArgsConstructor
@@ -42,7 +44,8 @@ public class AwardService {
         Award mostLate = null;
         long mostLateWorked = -1; // worked minutes of the current most-late leader, for tie-breaks
 
-        int minDays = penaltyProperties.getMinPunctualityDays();
+        int minPunctualityDays = penaltyProperties.getMinPunctualityDays();
+        int minWorkedDays = penaltyProperties.getMinWorkedAwardDays();
 
         for (Employee employee : employees) {
             MonthlySalaryBreakdown breakdown = salaryService.computeBreakdown(employee, month);
@@ -57,7 +60,8 @@ public class AwardService {
             worked.add(new RankedEmployee(
                     employee.getFullName(), employee.getDepartment(),
                     workedMinutes, workedDays, breakdown.lateDays(), lateMinutes,
-                    breakdown.punctualityScore(), breakdown.onTimeDays(), workedDays >= minDays
+                    breakdown.punctualityScore(), breakdown.onTimeDays(),
+                    workedDays >= minPunctualityDays, workedDays >= minWorkedDays
             ));
 
             // Latest: most total late minutes; ties break toward fewer worked minutes
@@ -74,12 +78,14 @@ public class AwardService {
         }
 
         List<RankedEmployee> byWorked = worked.stream()
-                .sorted(Comparator.comparingLong(RankedEmployee::workedMinutes).reversed())
+                .sorted(Comparator
+                        .comparing(RankedEmployee::workedQualifies).reversed()
+                        .thenComparing(Comparator.comparingLong(RankedEmployee::workedMinutes).reversed()))
                 .toList();
 
         List<RankedEmployee> byPunctuality = worked.stream()
                 .sorted(Comparator
-                        .comparing(RankedEmployee::qualifies).reversed()
+                        .comparing(RankedEmployee::punctualityQualifies).reversed()
                         .thenComparing(Comparator.comparingInt(RankedEmployee::punctualityScore).reversed())
                         .thenComparing(Comparator.comparingInt(RankedEmployee::onTimeDays).reversed())
                         .thenComparingLong(RankedEmployee::lateMinutes))
@@ -104,7 +110,7 @@ public class AwardService {
 
     private record RankedEmployee(String fullName, String department, long workedMinutes, int workedDays,
                                   int lateDays, long lateMinutes, int punctualityScore, int onTimeDays,
-                                  boolean qualifies) {
+                                  boolean punctualityQualifies, boolean workedQualifies) {
     }
 
     public record Award(String fullName, String department, long value) {

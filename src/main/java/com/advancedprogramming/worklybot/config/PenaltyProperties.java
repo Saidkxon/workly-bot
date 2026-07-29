@@ -15,7 +15,8 @@ import java.util.Set;
  *   penalty.default-qabul-salary=4000000
  *   penalty.default-base-salary=3000000
  *   penalty.off-days=SUNDAY, SATURDAY
- *   penalty.min-punctuality-days=10
+ *   penalty.min-punctuality-days=15
+ *   penalty.min-worked-award-days=15
  *
  * The per-department base salary is stored in the database (DepartmentSalary) and
  * is editable at runtime; these defaults are only used to seed/fallback.
@@ -44,5 +45,12 @@ public class PenaltyProperties {
      * Minimum worked days in a month before an employee can win the "most punctual"
      * award. Keeps a flawless 2-day record from beating a near-perfect full month.
      */
-    private int minPunctualityDays = 10;
+    private int minPunctualityDays = 15;
+
+    /**
+     * Minimum worked days in a month before an employee can win the "most worked"
+     * (the hardest worker) award. Keeps a handful of unusually long shifts from beating
+     * someone who worked most of the month.
+     */
+    private int minWorkedAwardDays = 15;
 }
