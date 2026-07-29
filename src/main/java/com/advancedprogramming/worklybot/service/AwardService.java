@@ -91,8 +91,8 @@ public class AwardService {
                         .thenComparingLong(RankedEmployee::lateMinutes))
                 .toList();
 
-        Award hardestWorker = toAward(byWorked.get(0));
-        Award mostPunctual = toAward(byPunctuality.get(0));
+        Award hardestWorker = toWorkedAward(byWorked.get(0));
+        Award mostPunctual = toPunctualAward(byPunctuality.get(0));
 
         List<AwardListEntry> topWorked = byWorked.stream().skip(1).limit(10).map(this::toListEntry).toList();
         List<AwardListEntry> topPunctual = byPunctuality.stream().skip(1).limit(10).map(this::toListEntry).toList();
@@ -100,8 +100,12 @@ public class AwardService {
         return new MonthlyAwards(month, hardestWorker, mostPunctual, mostLate, topWorked, topPunctual);
     }
 
-    private Award toAward(RankedEmployee r) {
+    private Award toWorkedAward(RankedEmployee r) {
         return new Award(r.fullName(), r.department(), r.workedMinutes());
+    }
+
+    private Award toPunctualAward(RankedEmployee r) {
+        return new Award(r.fullName(), r.department(), r.punctualityScore());
     }
 
     private AwardListEntry toListEntry(RankedEmployee r) {

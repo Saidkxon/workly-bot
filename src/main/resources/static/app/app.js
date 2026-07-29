@@ -195,7 +195,8 @@ async function loadDashboard(month) {
         renderSelfHistory(data.salary, data.monthHistory);
 
         state.role = data.employee.role;
-        loadAwards(month);
+        // Awards (hardest worker / most punctual / most late) are intentionally not
+        // shown in the app anymore — the monthly bot announcement is the only reveal.
 
         state.isManager = Boolean(data.managerSummary);
         els.tabs.hidden = false;
