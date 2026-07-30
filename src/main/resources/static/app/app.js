@@ -371,11 +371,11 @@ function renderTestAdmin(config) {
     els.testStatusLabel.textContent = statusLabels[config.status] || config.status;
 
     if (!config.questions || !config.questions.length) {
-        emptyRow(els.testQuestionsBody, 5, "Savollar qo'shilmagan.");
+        emptyRow(els.testQuestionsBody, 6, "Savollar qo'shilmagan.");
         return;
     }
     const typeLabels = { MULTIPLE_CHOICE: "Variantli", TEXT: "Yozma javob" };
-    els.testQuestionsBody.innerHTML = config.questions.map((q) => {
+    els.testQuestionsBody.innerHTML = config.questions.map((q, idx) => {
         let answerCell;
         if (q.type === "MULTIPLE_CHOICE") {
             const opts = [q.optionA, q.optionB, q.optionC, q.optionD].filter(Boolean).join(" / ");
@@ -384,6 +384,7 @@ function renderTestAdmin(config) {
             answerCell = q.correctAnswer ? esc(q.correctAnswer) + " (kalit so'z)" : "qo'lda tekshiriladi";
         }
         return `<tr>
+            <td>${idx + 1}</td>
             <td>${esc(q.questionText)}</td>
             <td>${esc(typeLabels[q.type] || q.type)}</td>
             <td>${answerCell}</td>
