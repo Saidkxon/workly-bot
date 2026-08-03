@@ -51,12 +51,8 @@ public class SalaryService {
     }
 
     public long getMonthlyBase(Employee employee) {
-        Shift shift = Shift.orDefault(employee.getShift());
-        if (shift == Shift.LONG_DAY) {
+        if (Shift.orDefault(employee.getShift()) == Shift.LONG_DAY) {
             return 4_000_000L;
-        }
-        if (shift == Shift.MIDDAY) {
-            return 3_000_000L;
         }
         return getMonthlyBase(Department.fromDisplayName(employee.getDepartment()));
     }
@@ -103,7 +99,7 @@ public class SalaryService {
     // ---- Monthly breakdown -----------------------------------------------------
 
     public MonthlySalaryBreakdown computeBreakdown(Employee employee, YearMonth month) {
-        long base = getMonthlyBase(employee);
+        long base = prorateForFirstMonth(employee, month, getMonthlyBase(employee));
         Shift shift = Shift.orDefault(employee.getShift());
 
         List<Attendance> attendances = attendanceRepository
@@ -167,6 +163,31 @@ public class SalaryService {
                 totalWorkedMinutes,
                 days
         );
+    }
+
+    /**
+     * Prorates the fixed monthly base for an employee's very first calendar month of
+     * employment — e.g. someone who joined on the 13th only gets paid for the days
+     * from the 13th through the end of that month, not the full fixed salary. Any
+     * month after their first is paid in full regardless of how many days they
+     * actually worked that month; ordinary absences are handled by the existing
+     * lateness/penalty system, not by proration.
+     */
+    private long prorateForFirstMonth(Employee employee, YearMonth month, long fullBase) {
+        Attendance firstAttendance = attendanceRepository.findFirstByEmployeeOrderByWorkDateAsc(employee).orElse(null);
+        if (firstAttendance == null) {
+            return fullBase;
+        }
+        LocalDate firstDay = firstAttendance.getWorkDate();
+        if (!YearMonth.from(firstDay).equals(month)) {
+            return fullBase;
+        }
+        int totalDaysInMonth = month.lengthOfMonth();
+        int eligibleDays = totalDaysInMonth - firstDay.getDayOfMonth() + 1;
+        if (eligibleDays >= totalDaysInMonth) {
+            return fullBase;
+        }
+        return Math.round(fullBase * (eligibleDays / (double) totalDaysInMonth));
     }
 
     /**

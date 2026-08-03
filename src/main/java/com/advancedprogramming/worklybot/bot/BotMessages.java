@@ -135,7 +135,10 @@ public class BotMessages {
             "📋 Status";
 
     public static final String BUTTON_HISTORY =
-            "📅 Sizning oy excel hisobotingiz";
+            "📅 Hozirgi oy";
+
+    public static final String BUTTON_PREVIOUS_HISTORY =
+            "🗓 Oldingi oylar hisoboti";
 
     public static final String BUTTON_OPEN_APP =
             "🌐 Ilova";
@@ -195,6 +198,9 @@ public class BotMessages {
     public static final String ENTER_SHIFT_SELECTION = "Ish smenangizni tanlang:";
     public static final String INVALID_SHIFT_SELECTION = "Iltimos, smenani tugmalardan tanlang.";
     public static final String OWN_EXCEL_CAPTION = "Sizning oylik excel hisobotingiz";
+
+    public static final String ENTER_OWN_HISTORY_MONTH =
+            "Qaysi oy uchun excel hisobot kerak? Format: yyyy-MM. Masalan: 2026-04";
     public static final String OWN_EXCEL_EMPTY = "Bu oy uchun ma'lumot yo'q.";
 
     public static final String CMD_SALARIES = "/maoshlar";

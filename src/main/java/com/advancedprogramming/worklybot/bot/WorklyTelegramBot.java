@@ -393,6 +393,22 @@ public class WorklyTelegramBot implements SpringLongPollingBot {
             return;
         }
 
+        if (session.getState() == UserState.WAITING_OWN_EXCEL_MONTH) {
+            YearMonth month = parseHistoryMonth(text);
+            if (month == null) {
+                sendPlainMessage(chatId, "Oy formati noto'g'ri. yyyy-MM formatida kiriting. Masalan: 2026-04", telegramClient);
+                return;
+            }
+            if (month.isAfter(YearMonth.now())) {
+                sendPlainMessage(chatId, "Kelajak oyi uchun hisobot mavjud emas. O'tgan yoki joriy oyni kiriting. Masalan: 2026-04", telegramClient);
+                return;
+            }
+
+            resetSession(session);
+            sendOwnMonthlyExcel(employee, chatId, telegramClient, month);
+            return;
+        }
+
         if (text.equals(BotMessages.CMD_ACTIVITIES)) {
             if (employee.getRole() != Role.ADMIN) {
                 sendMainMenu(employee, chatId, telegramClient, "Bu amal faqat adminlar uchun.");
@@ -806,7 +822,12 @@ public class WorklyTelegramBot implements SpringLongPollingBot {
                 return;
             }
             case BotMessages.BUTTON_HISTORY -> {
-                sendOwnMonthlyExcel(employee, chatId, telegramClient);
+                sendOwnMonthlyExcel(employee, chatId, telegramClient, YearMonth.now());
+                return;
+            }
+            case BotMessages.BUTTON_PREVIOUS_HISTORY -> {
+                session.setState(UserState.WAITING_OWN_EXCEL_MONTH);
+                sendPlainMessage(chatId, BotMessages.ENTER_OWN_HISTORY_MONTH, telegramClient);
                 return;
             }
             case BotMessages.BUTTON_OPEN_APP -> {
@@ -1075,10 +1096,10 @@ public class WorklyTelegramBot implements SpringLongPollingBot {
         }
     }
 
-    private void sendOwnMonthlyExcel(Employee employee, Long chatId, TelegramClient telegramClient) {
+    private void sendOwnMonthlyExcel(Employee employee, Long chatId, TelegramClient telegramClient, YearMonth month) {
         try {
-            byte[] fileBytes = excelReportService.buildEmployeeSalaryWorkbook(employee, YearMonth.now());
-            sendExcelDocument(chatId, fileBytes, "maosh_hisoboti.xlsx", BotMessages.OWN_EXCEL_CAPTION, telegramClient);
+            byte[] fileBytes = excelReportService.buildEmployeeSalaryWorkbook(employee, month);
+            sendExcelDocument(chatId, fileBytes, "maosh_hisoboti.xlsx", BotMessages.OWN_EXCEL_CAPTION + " - " + month, telegramClient);
         } catch (RuntimeException exception) {
             log.error("Failed to build own monthly Excel for chat {}", chatId, exception);
             sendPlainMessage(chatId, BotMessages.EXCEL_SEND_ERROR, telegramClient);
@@ -1171,6 +1192,7 @@ public class WorklyTelegramBot implements SpringLongPollingBot {
             case WAITING_EARLY_LEAVE_REASON -> "Erta ketish sababini yubordi";
             case WAITING_HISTORY_MONTH -> "Tarix oyi yuborildi: " + text;
             case WAITING_MANAGER_HISTORY_MONTH -> "Xodim tarixi oyi yuborildi: " + text;
+            case WAITING_OWN_EXCEL_MONTH -> "Oldingi oy hisoboti so'raldi: " + text;
             case WAITING_ARRIVAL_LOCATION -> "Kelish joylashuvi kutilayotganda matn yubordi: " + text;
             case WAITING_LEAVING_LOCATION -> "Ketish joylashuvi kutilayotganda matn yubordi: " + text;
             default -> text;
@@ -1276,6 +1298,7 @@ public class WorklyTelegramBot implements SpringLongPollingBot {
 
         KeyboardRow row2 = new KeyboardRow();
         row2.add(BotMessages.BUTTON_HISTORY);
+        row2.add(BotMessages.BUTTON_PREVIOUS_HISTORY);
 
         KeyboardRow row3 = new KeyboardRow();
         row3.add(BotMessages.BUTTON_FIX_MISTAKE);
@@ -1477,6 +1500,7 @@ public class WorklyTelegramBot implements SpringLongPollingBot {
                 || text.equals(BotMessages.BUTTON_LEFT_WORK)
                 || text.equals(BotMessages.BUTTON_STATUS)
                 || text.equals(BotMessages.BUTTON_HISTORY)
+                || text.equals(BotMessages.BUTTON_PREVIOUS_HISTORY)
                 || text.equals(BotMessages.BUTTON_OPEN_APP)
                 || text.equals(BotMessages.BUTTON_FIX_MISTAKE)
                 || text.equals(BotMessages.BUTTON_EARLY_LEAVE)

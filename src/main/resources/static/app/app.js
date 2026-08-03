@@ -37,6 +37,7 @@ const els = {
     performanceMonth: $("performanceMonth"), performanceBody: $("performanceBody"),
     awardsCard: $("awardsCard"), awardsMonth: $("awardsMonth"), awardsBody: $("awardsBody"),
     exportReportBtn: $("exportReportBtn"), exportEmpBtn: $("exportEmpBtn"),
+    reportExcelMonth: $("reportExcelMonth"),
     holidaysCard: $("holidaysCard"), holidayDate: $("holidayDate"), holidayDesc: $("holidayDesc"),
     holidayAdd: $("holidayAdd"), holidaysBody: $("holidaysBody"),
     payslipMonth: $("payslipMonth"), payslipBody: $("payslipBody"),
@@ -67,6 +68,7 @@ const els = {
 const thisMonth = new Date().toISOString().slice(0, 7);
 els.selfMonth.value = thisMonth;
 els.empMonth.value = thisMonth;
+els.reportExcelMonth.value = thisMonth;
 els.devUserId.value = state.devUserId;
 els.devAuth.hidden = Boolean(state.initData);
 
@@ -149,7 +151,7 @@ els.refreshEmployeesAdmin.addEventListener("click", loadEmployeesAdmin);
 els.refreshActivities.addEventListener("click", loadActivities);
 els.refreshAudit.addEventListener("click", loadAuditLog);
 els.refreshFeedbacks.addEventListener("click", loadFeedbacks);
-els.exportReportBtn.addEventListener("click", () => { haptic("medium"); downloadExcel(`/api/app/report/excel`, { month: els.selfMonth.value }, els.exportReportBtn); });
+els.exportReportBtn.addEventListener("click", () => { haptic("medium"); downloadExcel(`/api/app/report/excel`, { month: els.reportExcelMonth.value }, els.exportReportBtn); });
 els.exportEmpBtn.addEventListener("click", () => {
     if (!state.selectedEmployeeId) { showToast("Avval xodimni tanlang."); return; }
     haptic("medium");
