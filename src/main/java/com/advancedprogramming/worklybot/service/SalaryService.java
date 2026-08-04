@@ -28,10 +28,24 @@ import java.util.List;
  *
  * Rule: the first late day of a calendar month is a warning only (no deduction); each
  * later late day is charged {@code amountPerLateMinute} per late minute.
+ *
+ * <p>Pay is per-day-worked, not a flat monthly amount: each attended day pays
+ * {@link #FULL_SHIFT_DAY_RATE} if the employee worked at least
+ * {@link #FULL_SHIFT_MINUTES} that day, otherwise {@link #STANDARD_DAY_RATE}. A month
+ * is simply the sum of its worked days' rates — so someone who joined mid-month, or
+ * missed days for any reason, is automatically paid correctly with no separate
+ * proration step needed.
  */
 @Service
 @RequiredArgsConstructor
 public class SalaryService {
+
+    /** Per-day rate for a standard-length shift (under {@link #FULL_SHIFT_MINUTES}). */
+    public static final long STANDARD_DAY_RATE = 116_000L;
+    /** Per-day rate for a full/long shift (at least {@link #FULL_SHIFT_MINUTES} worked). */
+    public static final long FULL_SHIFT_DAY_RATE = 154_000L;
+    /** Minutes worked in a day to count as a "full shift" day (~11 hours). */
+    public static final long FULL_SHIFT_MINUTES = 11 * 60L;
 
     private final DepartmentSalaryRepository departmentSalaryRepository;
     private final AttendanceRepository attendanceRepository;
@@ -99,7 +113,6 @@ public class SalaryService {
     // ---- Monthly breakdown -----------------------------------------------------
 
     public MonthlySalaryBreakdown computeBreakdown(Employee employee, YearMonth month) {
-        long base = prorateForFirstMonth(employee, month, getMonthlyBase(employee));
         Shift shift = Shift.orDefault(employee.getShift());
 
         List<Attendance> attendances = attendanceRepository
@@ -107,6 +120,7 @@ public class SalaryService {
                         employee, month.atDay(1), month.atEndOfMonth());
 
         List<SalaryDayRow> days = new ArrayList<>();
+        long grossPay = 0;
         long totalDeduction = 0;
         long totalLateMinutes = 0;
         long totalWorkedMinutes = 0;
@@ -118,6 +132,7 @@ public class SalaryService {
             long worked = workedMinutes(attendance);
             long late = lateMinutes(attendance, shift);
             totalWorkedMinutes += worked;
+            grossPay += worked >= FULL_SHIFT_MINUTES ? FULL_SHIFT_DAY_RATE : STANDARD_DAY_RATE;
 
             long deduction = 0;
             boolean warning = false;
@@ -146,7 +161,7 @@ public class SalaryService {
             ));
         }
 
-        long net = Math.max(0, base - totalDeduction);
+        long net = Math.max(0, grossPay - totalDeduction);
 
         return new MonthlySalaryBreakdown(
                 employee.getTelegramUserId(),
@@ -154,7 +169,7 @@ public class SalaryService {
                 employee.getDepartment(),
                 shift.getDisplayName(),
                 month,
-                base,
+                grossPay,
                 totalDeduction,
                 net,
                 lateDays,
@@ -163,31 +178,6 @@ public class SalaryService {
                 totalWorkedMinutes,
                 days
         );
-    }
-
-    /**
-     * Prorates the fixed monthly base for an employee's very first calendar month of
-     * employment — e.g. someone who joined on the 13th only gets paid for the days
-     * from the 13th through the end of that month, not the full fixed salary. Any
-     * month after their first is paid in full regardless of how many days they
-     * actually worked that month; ordinary absences are handled by the existing
-     * lateness/penalty system, not by proration.
-     */
-    private long prorateForFirstMonth(Employee employee, YearMonth month, long fullBase) {
-        Attendance firstAttendance = attendanceRepository.findFirstByEmployeeOrderByWorkDateAsc(employee).orElse(null);
-        if (firstAttendance == null) {
-            return fullBase;
-        }
-        LocalDate firstDay = firstAttendance.getWorkDate();
-        if (!YearMonth.from(firstDay).equals(month)) {
-            return fullBase;
-        }
-        int totalDaysInMonth = month.lengthOfMonth();
-        int eligibleDays = totalDaysInMonth - firstDay.getDayOfMonth() + 1;
-        if (eligibleDays >= totalDaysInMonth) {
-            return fullBase;
-        }
-        return Math.round(fullBase * (eligibleDays / (double) totalDaysInMonth));
     }
 
     /**

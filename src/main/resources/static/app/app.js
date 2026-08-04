@@ -758,7 +758,7 @@ function renderPayslip(salary, monthHistory, date) {
 
     els.payslipBody.innerHTML = `
         <div class="ledger">
-            <div class="ledger-row"><span class="lbl">Sizning fiksa maoshingiz</span><span class="val">${formatSum(salary.baseSalary)}</span></div>
+            <div class="ledger-row"><span class="lbl">Ushbu oy uchun maoshingiz</span><span class="val">${formatSum(salary.baseSalary)}</span></div>
             <div class="ledger-row deduct"><span class="lbl">Jarimalaringiz</span><span class="val">${salary.totalDeduction ? "−" + formatSum(salary.totalDeduction) : formatSum(0)}</span></div>
             <div class="ledger-row total"><span class="lbl">Umumiy miqdor</span><span class="val">${formatSum(salary.netSalary)}</span></div>
         </div>
