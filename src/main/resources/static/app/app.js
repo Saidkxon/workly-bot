@@ -47,7 +47,7 @@ const els = {
     reportDate: $("reportDate"), filterCards: $("filterCards"),
     fcArrived: $("fcArrived"), fcAbsent: $("fcAbsent"), fcLate: $("fcLate"), fcMissing: $("fcMissing"),
     reportSearch: $("reportSearch"), reportDept: $("reportDept"), reportClear: $("reportClear"), reportBody: $("reportBody"),
-    empMonth: $("empMonth"), empSelect: $("empSelect"), empPerformance: $("empPerformance"), empHistoryBody: $("empHistoryBody"),
+    empMonth: $("empMonth"), empSearch: $("empSearch"), empSelect: $("empSelect"), empPerformance: $("empPerformance"), empHistoryBody: $("empHistoryBody"),
     employeesCard: $("employeesCard"), refreshEmployeesAdmin: $("refreshEmployeesAdmin"), employeesAdminBody: $("employeesAdminBody"),
     activitiesCard: $("activitiesCard"), refreshActivities: $("refreshActivities"), activitiesBody: $("activitiesBody"),
     auditCard: $("auditCard"), refreshAudit: $("refreshAudit"), auditBody: $("auditBody"),
@@ -146,6 +146,7 @@ els.empSelect.addEventListener("change", () => {
     state.selectedEmployeeId = els.empSelect.value;
     loadEmployeeHistory();
 });
+els.empSearch.addEventListener("input", () => renderEmpOptions(els.empSearch.value));
 els.empMonth.addEventListener("change", loadEmployeeHistory);
 els.refreshEmployeesAdmin.addEventListener("click", loadEmployeesAdmin);
 els.refreshActivities.addEventListener("click", loadActivities);
@@ -851,10 +852,40 @@ function pulseRow(dot, label, value) {
 
 function renderEmployees(employees) {
     state.employees = employees || [];
-    els.empSelect.innerHTML = state.employees
+    renderEmpOptions(els.empSearch.value);
+}
+
+/* ---------------- employee search (Latin/Cyrillic aware) ---------------- */
+const CYRILLIC_TO_LATIN = {
+    "а": "a", "б": "b", "в": "v", "г": "g", "д": "d", "е": "e", "ё": "yo", "ж": "j",
+    "з": "z", "и": "i", "й": "y", "к": "k", "л": "l", "м": "m", "н": "n", "о": "o",
+    "п": "p", "р": "r", "с": "s", "т": "t", "у": "u", "ф": "f", "х": "x", "ц": "ts",
+    "ч": "ch", "ш": "sh", "щ": "sh", "ъ": "", "ы": "i", "ь": "", "э": "e", "ю": "yu",
+    "я": "ya", "ў": "o", "қ": "q", "ғ": "g", "ҳ": "h",
+};
+
+function normalizeSearchText(value) {
+    if (!value) return "";
+    let out = "";
+    for (const ch of value.toLowerCase()) {
+        out += CYRILLIC_TO_LATIN[ch] ?? ch;
+    }
+    return out.replace(/['\u02bb\u02bc\u2018\u2019\u02bf`]/g, "");
+}
+
+function renderEmpOptions(searchText) {
+    const query = normalizeSearchText(searchText);
+    const filtered = query
+        ? state.employees.filter((e) => normalizeSearchText(e.fullName).includes(query))
+        : state.employees;
+
+    els.empSelect.innerHTML = filtered
         .map((e) => `<option value="${e.telegramUserId}">${esc(e.fullName)} · ${esc(e.department)}</option>`)
         .join("");
-    state.selectedEmployeeId = state.employees[0]?.telegramUserId || null;
+
+    const stillPresent = filtered.some((e) => String(e.telegramUserId) === String(state.selectedEmployeeId));
+    state.selectedEmployeeId = stillPresent ? state.selectedEmployeeId : (filtered[0]?.telegramUserId || null);
+
     if (state.selectedEmployeeId) {
         els.empSelect.value = String(state.selectedEmployeeId);
         loadEmployeeHistory();

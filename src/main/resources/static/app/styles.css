@@ -429,6 +429,7 @@ input:focus, select:focus, .btn:focus-visible, .tab:focus-visible, .filter-card:
 input:focus, select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); }
 .month-input { padding: 7px 10px; font-size: .85rem; }
 .employee-select { width: 100%; margin-bottom: 12px; }
+.employee-search { width: 100%; margin-bottom: 8px; }
 
 /* ---------- Buttons ---------- */
 .btn {
